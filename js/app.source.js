@@ -3684,7 +3684,8 @@ async function openDetailRowEditDrawer(moduleName, sheetRow) {
     setTimeout(() => drawer.classList.remove('translate-x-full'), 10);
 }
 
-function closeNXManualDrawer() {
+function closeNXManualDrawer(requireConfirm = false) {
+    if (requireConfirm && !confirm('Bạn có chắc chắn muốn hủy bỏ? Các thay đổi sẽ không được lưu.')) return;
     const drawer = document.getElementById('nxManualDrawer');
     const overlay = document.getElementById('nxManualDrawerOverlay');
     if (!drawer || !overlay) return;
