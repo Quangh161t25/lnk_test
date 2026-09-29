@@ -69,6 +69,8 @@ async function refreshActiveModule() {
         } else if (['nhanvien', 'khachhang'].includes(moduleName)) {
             await fetchAuthData();
             renderDsnvDirectory(moduleName);
+        } else if (moduleName === 'dubaonhap') {
+            if (typeof renderDubaoNhapModule === 'function') await renderDubaoNhapModule(false, true);
         } else if (moduleName === 'caidat') {
             if (typeof renderCaidatModule === 'function') renderCaidatModule();
         } else {
@@ -133,7 +135,7 @@ function updateUserProfileUI() {
 
     // Hide/Show Navigation items based on role
     const allowed = getAllowedModules(currentUser.role);
-    ['home', 'nhapxuat', 'nhap', 'dukien', 'xuat', 'chuyenkho', 'anhdonhang', 'sanpham', 'sanphamkho', 'ton_npp', 'doisoat', 'nhanvien', 'khachhang', 'giuhang', 'kiemkho', 'dashboard', 'caidat'].forEach(m => {
+    ['home', 'nhapxuat', 'nhap', 'dukien', 'xuat', 'chuyenkho', 'anhdonhang', 'sanpham', 'sanphamkho', 'ton_npp', 'doisoat', 'nhanvien', 'khachhang', 'giuhang', 'kiemkho', 'dashboard', 'dubaonhap', 'caidat'].forEach(m => {
         const navEl = document.getElementById(`nav-${m}`);
         const bNavEl = document.getElementById(`bottom-nav-${m}`);
         const cardEl = document.getElementById(`home-card-${m}`);
@@ -230,7 +232,8 @@ const HEADER_SEARCH_MODULES = {
     nhanvien: { inputId: 'nhanvienSearchInput', placeholder: 'Tìm nhân viên...' },
     khachhang: { inputId: 'khachhangSearchInput', placeholder: 'Tìm khách hàng...' },
     giuhang: { inputId: 'giuHangSearchInput', placeholder: 'Tìm tên nhân viên, sản phẩm...' },
-    kiemkho: { inputId: 'kiemKhoSearchInput', placeholder: 'Tìm ngày, mã SP, vị trí...' }
+    kiemkho: { inputId: 'kiemKhoSearchInput', placeholder: 'Tìm ngày, mã SP, vị trí...' },
+    dubaonhap: { inputId: 'dubaonhapSearchInput', placeholder: 'Tìm mã, tên sản phẩm...' }
 };
 let activeHeaderSearchModule = '';
 const MODULE_PAGE_PATHS = {
@@ -249,6 +252,7 @@ const MODULE_PAGE_PATHS = {
     giuhang: 'giuhang.html',
     kiemkho: 'kiemkho.html',
     dashboard: 'dashboard.html',
+    dubaonhap: 'dubaonhap.html',
     caidat: 'caidat.html'
 };
 
@@ -336,6 +340,7 @@ function handleHeaderSearch(value) {
     if (activeHeaderSearchModule === 'nhapxuat') applyFilters(true);
     else if (['nhap', 'dukien', 'xuat', 'chuyenkho', 'sanpham', 'sanphamkho', 'ton_npp', 'doisoat'].includes(activeHeaderSearchModule)) renderSimpleSheetModule(activeHeaderSearchModule, true);
     else if (['nhanvien', 'khachhang'].includes(activeHeaderSearchModule)) renderDsnvDirectory(activeHeaderSearchModule);
+    else if (activeHeaderSearchModule === 'dubaonhap') { if (typeof renderDubaoNhapModule === 'function') renderDubaoNhapModule(true); }
     else if (activeHeaderSearchModule === 'giuhang') applyGiuHangFilters();
     else if (activeHeaderSearchModule === 'kiemkho') applyKiemKhoFilters(true);
 }
@@ -350,7 +355,7 @@ function switchModule(moduleName, options = {}) {
     if (!options.renderOnly && navigateToModulePage(moduleName)) return;
 
     activeModuleName = moduleName;
-    ['home', 'nhapxuat', 'nhap', 'dukien', 'xuat', 'chuyenkho', 'anhdonhang', 'sanpham', 'sanphamkho', 'ton_npp', 'doisoat', 'nhanvien', 'khachhang', 'giuhang', 'kiemkho', 'dashboard', 'caidat'].forEach(m => {
+    ['home', 'nhapxuat', 'nhap', 'dukien', 'xuat', 'chuyenkho', 'anhdonhang', 'sanpham', 'sanphamkho', 'ton_npp', 'doisoat', 'nhanvien', 'khachhang', 'giuhang', 'kiemkho', 'dashboard', 'dubaonhap', 'caidat'].forEach(m => {
         const mod = document.getElementById(`module-${m}`);
         if (mod) mod.classList.add('hidden');
 
@@ -389,6 +394,7 @@ function switchModule(moduleName, options = {}) {
         'khachhang': 'Danh sách khách hàng',
         'giuhang': 'Quản lý giữ hàng',
         'dashboard': 'Báo cáo & Phân tích',
+        'dubaonhap': 'Dự báo nhập hàng',
         'caidat': 'Cài đặt & Phân quyền'
     };
     titles['anhdonhang'] = 'Ảnh đơn hàng';
@@ -404,6 +410,8 @@ function switchModule(moduleName, options = {}) {
         renderSimpleSheetModule(moduleName, false, true);
     } else if (['nhanvien', 'khachhang'].includes(moduleName)) {
         renderDsnvDirectory(moduleName);
+    } else if (moduleName === 'dubaonhap') {
+        if (typeof renderDubaoNhapModule === 'function') renderDubaoNhapModule(false, true);
     } else if (moduleName === 'caidat') {
         if (typeof renderCaidatModule === 'function') renderCaidatModule();
     }

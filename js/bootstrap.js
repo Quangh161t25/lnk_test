@@ -55,6 +55,7 @@
             'js/khachhang.js',
             'js/inventory.js',
             'js/caidat.js',
+            'js/dubaonhap.js',
             'js/init.js'
         ];
         for (const file of scripts) await loadScript(file);

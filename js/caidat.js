@@ -24,6 +24,7 @@ const CAIDAT_AVAILABLE_MODULES = [
     { key: 'doisoat', name: 'Đối soát', desc: 'Đối chiếu tồn hệ thống với MISA', icon: 'ĐS', color: 'rose' },
     { key: 'nhanvien', name: 'Danh sách nhân viên', desc: 'Danh bạ nhân viên từ DSNV', icon: 'NV', color: 'sky' },
     { key: 'khachhang', name: 'Danh sách khách hàng', desc: 'Khách hàng NPP và NCC', icon: 'KH', color: 'violet' },
+    { key: 'dubaonhap', name: 'Dự báo nhập hàng', desc: 'Dự báo điểm đặt hàng (ROP), số ngày hết hàng và lượng cần nhập', icon: '📈', color: 'purple' },
     { key: 'caidat', name: 'Cài đặt & Phân quyền', desc: 'Quản trị hệ thống & thiết kế phân quyền', icon: '⚙️', color: 'slate' }
 ];
 

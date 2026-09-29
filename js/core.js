@@ -136,7 +136,7 @@ const simpleModuleSorts = {
     sanphamkho: { column: 'ton_cuoi', direction: 'desc' },
     ton_npp: { column: 'ngay', direction: 'desc' }
 };
-const ACTIVE_MODULES = ['home', 'nhap', 'dukien', 'xuat', 'chuyenkho', 'sanpham', 'sanphamkho', 'ton_npp', 'doisoat', 'nhanvien', 'khachhang', 'caidat'];
+const ACTIVE_MODULES = ['home', 'nhap', 'dukien', 'xuat', 'chuyenkho', 'sanpham', 'sanphamkho', 'ton_npp', 'doisoat', 'nhanvien', 'khachhang', 'dubaonhap', 'caidat'];
 
 const DEFAULT_PERMISSIONS = {
     modules: {
@@ -151,11 +151,12 @@ const DEFAULT_PERMISSIONS = {
         'doisoat': 'Đối soát',
         'nhanvien': 'Danh sách nhân viên',
         'khachhang': 'Danh sách khách hàng',
+        'dubaonhap': 'Dự báo nhập hàng',
         'caidat': 'Cài đặt & Phân quyền'
     },
     roles: {
         'ADMIN': {
-            modules: ['home', 'nhap', 'dukien', 'xuat', 'chuyenkho', 'sanpham', 'sanphamkho', 'ton_npp', 'doisoat', 'nhanvien', 'khachhang', 'caidat'],
+            modules: ['home', 'nhap', 'dukien', 'xuat', 'chuyenkho', 'sanpham', 'sanphamkho', 'ton_npp', 'doisoat', 'nhanvien', 'khachhang', 'dubaonhap', 'caidat'],
             actions: ['nx.manualAdd', 'nx.upload', 'nx.confirmWarehouse', 'nx.delete', 'sanpham.manage', 'doisoat.manage', 'caidat.manage']
         },
         'kt': {
@@ -409,7 +410,12 @@ function resolveRoleKey(role) {
 
 function getRoleConfig(role) {
     const roleKey = resolveRoleKey(role);
-    return (appPermissions.roles && appPermissions.roles[roleKey]) || { modules: ['home'], actions: [] };
+    const config = (appPermissions.roles && appPermissions.roles[roleKey]) || { modules: ['home'], actions: [] };
+    if (roleKey === 'ADMIN') {
+        if (!Array.isArray(config.modules)) config.modules = [];
+        if (!config.modules.includes('dubaonhap')) config.modules.push('dubaonhap');
+    }
+    return config;
 }
 
 function getAllowedModules(role) {
@@ -724,11 +730,31 @@ async function saveCaiDatToGoogleSheet(customRows = null) {
     return await resp.json();
 }
 
+function ensureAdminHasDubaoNhap() {
+    if (!appPermissions) return;
+    if (!appPermissions.modules) appPermissions.modules = {};
+    appPermissions.modules['dubaonhap'] = 'Dự báo nhập hàng';
+    if (!appPermissions.roles) appPermissions.roles = {};
+    if (!appPermissions.roles.ADMIN) {
+        appPermissions.roles.ADMIN = { modules: ['home', 'dubaonhap'], actions: [] };
+    }
+    if (!Array.isArray(appPermissions.roles.ADMIN.modules)) {
+        appPermissions.roles.ADMIN.modules = ['home', 'dubaonhap'];
+    }
+    if (!appPermissions.roles.ADMIN.modules.includes('dubaonhap')) {
+        appPermissions.roles.ADMIN.modules.push('dubaonhap');
+    }
+    try {
+        localStorage.setItem('erp_custom_permissions', JSON.stringify(appPermissions, null, 2));
+    } catch (e) {}
+}
+
 async function loadPermissionsConfig() {
     try {
         // First try loading live from sheet CAI_DAT
         const sheetLoaded = await loadCaiDatFromGoogleSheet();
         if (sheetLoaded && sheetLoaded.permissions) {
+            ensureAdminHasDubaoNhap();
             return appPermissions;
         }
 
@@ -744,6 +770,7 @@ async function loadPermissionsConfig() {
                 userRestrictions: { ...DEFAULT_PERMISSIONS.userRestrictions, ...(parsed.userRestrictions || {}) },
                 userWarehouses: { ...DEFAULT_PERMISSIONS.userWarehouses, ...(parsed.userWarehouses || {}) }
             };
+            ensureAdminHasDubaoNhap();
             return appPermissions;
         }
 
@@ -759,9 +786,11 @@ async function loadPermissionsConfig() {
             userRestrictions: { ...DEFAULT_PERMISSIONS.userRestrictions, ...(data.userRestrictions || {}) },
             userWarehouses: { ...DEFAULT_PERMISSIONS.userWarehouses, ...(data.userWarehouses || {}) }
         };
+        ensureAdminHasDubaoNhap();
     } catch (err) {
         console.warn("Permission config fallback:", err);
         appPermissions = JSON.parse(JSON.stringify(DEFAULT_PERMISSIONS));
+        ensureAdminHasDubaoNhap();
     }
     return appPermissions;
 }

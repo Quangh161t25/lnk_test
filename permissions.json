@@ -12,6 +12,7 @@
     "doisoat": "Đối soát",
     "nhanvien": "Danh sách nhân viên",
     "khachhang": "Danh sách khách hàng",
+    "dubaonhap": "Dự báo nhập hàng",
     "caidat": "Cài đặt & Phân quyền"
   },
   "roles": {
@@ -28,6 +29,7 @@
         "doisoat",
         "nhanvien",
         "khachhang",
+        "dubaonhap",
         "caidat"
       ],
       "actions": [
