@@ -258,7 +258,7 @@ function getFilteredSimpleModuleRows(moduleName) {
             const rowDate = parseSimpleSheetDate(row[2]);
             const maPo = (row[3] || '').toString().toLowerCase();
             const idSp = (row[4] || '').toString().toLowerCase();
-            const status = (row[9] || '').toString().toLowerCase();
+            const status = (row[9] || '').toString().toLowerCase().trim();
             const filterStatus = (document.getElementById('dukienFilterStatus')?.value || '').toLowerCase().trim();
             if ((dateFrom || dateTo) && Number.isNaN(rowDate.getTime())) return false;
             if (filterMdh && !maPo.includes(filterMdh)) return false;
@@ -596,11 +596,28 @@ function getSimpleModuleDisplayValue(moduleName, row, column, index, movementTot
     return row[index] || '';
 }
 
+function getExpectedStatusBadgeClass(status) {
+    const s = (status || '').toString().trim().toLowerCase();
+    if (s.includes('đang làm việc')) return 'bg-sky-50 text-sky-700 border-sky-200';
+    if (s.includes('đã đặt hàng')) return 'bg-indigo-50 text-indigo-700 border-indigo-200';
+    if (s.includes('chưa giao') || s.includes('pending')) return 'bg-slate-100 text-slate-700 border-slate-200';
+    if (s.includes('đang trên đường') || s.includes('in transit')) return 'bg-amber-50 text-amber-700 border-amber-200';
+    if (s.includes('đã về kho') || s.includes('arrived')) return 'bg-cyan-50 text-cyan-700 border-cyan-200';
+    if (s.includes('chờ kiểm định')) return 'bg-purple-50 text-purple-700 border-purple-200';
+    if (s.includes('đã nhập kho') || s.includes('completed')) return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+    if (s.includes('hoãn') || s.includes('delayed')) return 'bg-rose-50 text-rose-700 border-rose-200';
+    return 'bg-slate-100 text-slate-700 border-slate-200';
+}
+
 function renderSimpleModuleCell(moduleName, column, value) {
     if (moduleName === 'sanpham' && column === 'anh') {
         return value
             ? `<img src="${escAttr(value)}" alt="" class="w-10 h-10 rounded-lg object-cover border border-slate-200">`
             : '';
+    }
+    if (moduleName === 'dukien' && column === 'trang_thai' && value) {
+        const badgeClass = getExpectedStatusBadgeClass(value);
+        return `<span class="inline-flex items-center px-2 py-0.5 rounded-full border text-[11px] font-medium ${badgeClass}">${escAttr(value)}</span>`;
     }
     return escAttr(value);
 }
@@ -1339,9 +1356,9 @@ function normalizeExpectedRow(row, fallbackIndex = 0) {
     normalized[7] = cleanNumber(normalized[7]);
     normalized[10] = cleanNumber(normalized[10]);
     normalized[11] = normalized[10] - normalized[7];
-    normalized[9] = EXPECTED_DELIVERY_STATUSES.includes(normalized[9])
-        ? normalized[9]
-        : EXPECTED_DELIVERY_STATUSES[0];
+    const rawStatus = (normalized[9] || '').toString().trim();
+    const matchedStatus = EXPECTED_DELIVERY_STATUSES.find(s => s.toLowerCase() === rawStatus.toLowerCase());
+    normalized[9] = matchedStatus || EXPECTED_DELIVERY_STATUSES[0];
     return normalized;
 }
 
@@ -1524,9 +1541,12 @@ function openSimpleSheetManualDrawer(moduleName) {
 }
 
 const EXPECTED_DELIVERY_STATUSES = [
+    'Đang làm việc',
+    'Đã đặt hàng',
     'Chưa giao (Pending)',
     'Đang trên đường (In Transit)',
     'Đã về kho - Đang kiểm (Arrived - Checking)',
+    'Chờ kiểm định',
     'Đã nhập kho xong (Completed)',
     'Bị hoãn (Delayed)'
 ];
@@ -1547,7 +1567,9 @@ async function openExpectedManualDrawer(sheetRow = 0) {
     document.getElementById('expectedManualEntryDate').value = formatDateForInput(row?.[2] || '') || new Date().toISOString().slice(0, 10);
     document.getElementById('expectedManualPo').value = row?.[3] || '';
     document.getElementById('expectedManualArrivalDate').value = formatDateForInput(row?.[8] || '');
-    document.getElementById('expectedManualStatus').value = EXPECTED_DELIVERY_STATUSES.includes(row?.[9]) ? row[9] : EXPECTED_DELIVERY_STATUSES[0];
+    const rawStatus = (row?.[9] || '').toString().trim();
+    const matchedStatus = EXPECTED_DELIVERY_STATUSES.find(s => s.toLowerCase() === rawStatus.toLowerCase());
+    document.getElementById('expectedManualStatus').value = matchedStatus || EXPECTED_DELIVERY_STATUSES[0];
     document.getElementById('expectedProductList').innerHTML = getProductCatalog()
         .map(product => `<option value="${escAttr(product.id)} - ${escAttr(product.name)}"></option>`)
         .join('');

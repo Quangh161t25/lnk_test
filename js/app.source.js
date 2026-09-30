@@ -2167,9 +2167,9 @@ function normalizeExpectedRow(row, fallbackIndex = 0) {
     normalized[7] = cleanNumber(normalized[7]);
     normalized[10] = cleanNumber(normalized[10]);
     normalized[11] = normalized[10] - normalized[7];
-    normalized[9] = EXPECTED_DELIVERY_STATUSES.includes(normalized[9])
-        ? normalized[9]
-        : EXPECTED_DELIVERY_STATUSES[0];
+    const rawStatus = (normalized[9] || '').toString().trim();
+    const matchedStatus = EXPECTED_DELIVERY_STATUSES.find(s => s.toLowerCase() === rawStatus.toLowerCase());
+    normalized[9] = matchedStatus || EXPECTED_DELIVERY_STATUSES[0];
     return normalized;
 }
 
@@ -2351,9 +2351,12 @@ function openSimpleSheetManualDrawer(moduleName) {
 }
 
 const EXPECTED_DELIVERY_STATUSES = [
+    'Đang làm việc',
+    'Đã đặt hàng',
     'Chưa giao (Pending)',
     'Đang trên đường (In Transit)',
     'Đã về kho - Đang kiểm (Arrived - Checking)',
+    'Chờ kiểm định',
     'Đã nhập kho xong (Completed)',
     'Bị hoãn (Delayed)'
 ];
@@ -2374,7 +2377,9 @@ async function openExpectedManualDrawer(sheetRow = 0) {
     document.getElementById('expectedManualEntryDate').value = formatDateForInput(row?.[2] || '') || new Date().toISOString().slice(0, 10);
     document.getElementById('expectedManualPo').value = row?.[3] || '';
     document.getElementById('expectedManualArrivalDate').value = formatDateForInput(row?.[8] || '');
-    document.getElementById('expectedManualStatus').value = EXPECTED_DELIVERY_STATUSES.includes(row?.[9]) ? row[9] : EXPECTED_DELIVERY_STATUSES[0];
+    const rawStatus = (row?.[9] || '').toString().trim();
+    const matchedStatus = EXPECTED_DELIVERY_STATUSES.find(s => s.toLowerCase() === rawStatus.toLowerCase());
+    document.getElementById('expectedManualStatus').value = matchedStatus || EXPECTED_DELIVERY_STATUSES[0];
     document.getElementById('expectedProductList').innerHTML = getProductCatalog()
         .map(product => `<option value="${escAttr(product.id)} - ${escAttr(product.name)}"></option>`)
         .join('');

@@ -45,9 +45,12 @@
                 <select id="dukienFilterStatus" onchange="renderSimpleSheetModule('dukien', true)"
                     class="px-3 py-2 border border-slate-200 rounded-lg text-xs bg-white min-w-[220px]">
                     <option value="">Tất cả trạng thái</option>
+                    <option value="Đang làm việc">Đang làm việc</option>
+                    <option value="Đã đặt hàng">Đã đặt hàng</option>
                     <option value="Chưa giao (Pending)">Chưa giao (Pending)</option>
                     <option value="Đang trên đường (In Transit)">Đang trên đường (In Transit)</option>
                     <option value="Đã về kho - Đang kiểm (Arrived - Checking)">Đã về kho - Đang kiểm (Arrived - Checking)</option>
+                    <option value="Chờ kiểm định">Chờ kiểm định</option>
                     <option value="Đã nhập kho xong (Completed)">Đã nhập kho xong (Completed)</option>
                     <option value="Bị hoãn (Delayed)">Bị hoãn (Delayed)</option>
                 </select>
@@ -106,9 +109,12 @@
                         <div class="space-y-1.5 md:col-span-2">
                             <label class="text-xs font-bold text-slate-500 uppercase">Trạng thái</label>
                             <select id="expectedManualStatus" class="form-input bg-white">
+                                <option value="Đang làm việc">Đang làm việc</option>
+                                <option value="Đã đặt hàng">Đã đặt hàng</option>
                                 <option value="Chưa giao (Pending)">Chưa giao (Pending)</option>
                                 <option value="Đang trên đường (In Transit)">Đang trên đường (In Transit)</option>
                                 <option value="Đã về kho - Đang kiểm (Arrived - Checking)">Đã về kho - Đang kiểm (Arrived - Checking)</option>
+                                <option value="Chờ kiểm định">Chờ kiểm định</option>
                                 <option value="Đã nhập kho xong (Completed)">Đã nhập kho xong (Completed)</option>
                                 <option value="Bị hoãn (Delayed)">Bị hoãn (Delayed)</option>
                             </select>
