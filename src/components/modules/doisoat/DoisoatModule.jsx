@@ -60,6 +60,13 @@ export function DoisoatModule() {
   const [editRow, setEditRow] = useState(null);
   const [isExcelModalOpen, setIsExcelModalOpen] = useState(false);
 
+  // Lazy load doisoat data on demand
+  React.useEffect(() => {
+    if (!doisoatData || doisoatData.length <= 1) {
+      fetchModule('doisoat');
+    }
+  }, [doisoatData, fetchModule]);
+
   const aggregates = useMemo(() => {
     return calculateProductAggregates(nhapData, xuatData, transferData, warehouseProductData);
   }, [nhapData, xuatData, transferData, warehouseProductData]);

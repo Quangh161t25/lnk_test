@@ -1,34 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '../../../context/AuthContext';
-import { useData } from '../../../context/DataContext';
-import { Lock, User, LogIn, AlertCircle, RotateCw, Info } from 'lucide-react';
+import { Lock, User, LogIn, AlertCircle, RotateCw } from 'lucide-react';
 
 export function LoginScreen() {
-  const { login, usersData } = useAuth();
-  const { fetchUsersData } = useData();
+  const { login } = useAuth();
 
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [fetchingList, setFetchingList] = useState(false);
-
-  // Pre-load accounts list from Google Sheets DSNV on mount
-  useEffect(() => {
-    async function initAccounts() {
-      if (!usersData || usersData.length === 0) {
-        setFetchingList(true);
-        try {
-          await fetchUsersData();
-        } catch (e) {
-          console.warn("Pre-fetching DSNV accounts error:", e);
-        } finally {
-          setFetchingList(false);
-        }
-      }
-    }
-    initAccounts();
-  }, [fetchUsersData, usersData]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -36,12 +16,9 @@ export function LoginScreen() {
     setLoading(true);
 
     try {
-      if (!usersData || usersData.length === 0) {
-        await fetchUsersData();
-      }
       await login(username, password);
     } catch (err) {
-      setError(err.message || 'Đăng nhập thất bại.');
+      setError(err.message || 'Đăng nhập thất bại. Vui lòng kiểm tra lại tài khoản và mật khẩu.');
     } finally {
       setLoading(false);
     }
@@ -60,13 +37,6 @@ export function LoginScreen() {
             <p className="text-xs text-slate-500 mt-1">Quản lý kho hàng & ERP thông minh</p>
           </div>
         </div>
-
-        {fetchingList && (
-          <div className="p-3 bg-blue-50 text-blue-700 rounded-xl text-xs flex items-center gap-2 border border-blue-100">
-            <RotateCw className="w-3.5 h-3.5 animate-spin text-blue-600" />
-            <span>Đang nạp danh sách tài khoản từ Google Sheets (DSNV)...</span>
-          </div>
-        )}
 
         {error && (
           <div className="p-3 bg-red-50 text-red-700 rounded-xl text-xs flex items-center gap-2 border border-red-200">

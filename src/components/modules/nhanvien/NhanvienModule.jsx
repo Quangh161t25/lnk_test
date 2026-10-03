@@ -58,6 +58,13 @@ export function NhanvienModule() {
   const [editUser, setEditUser] = useState(null);
   const [isExcelModalOpen, setIsExcelModalOpen] = useState(false);
 
+  // Lazy load users data only when authorized admin visits NhanvienModule
+  React.useEffect(() => {
+    if ((!usersData || usersData.length === 0) && isAdminSession()) {
+      fetchUsersData();
+    }
+  }, [usersData, isAdminSession, fetchUsersData]);
+
   const handleDeleteEmployee = async (u) => {
     if (!u.sheetRow) return;
     if (window.confirm(`Bạn có chắc chắn muốn xóa nhân viên: ${u.id} - ${u.name}?`)) {

@@ -36,7 +36,7 @@ const STANDARD_ROLES = ['ADMIN', 'KT', 'KHO', 'NPP', 'KD', 'NVKD'];
 export function CaidatModule() {
   const { appSettings, updateSettings, applyParsedSettings, getWarehouseOptions } = useSettings();
   const { permissions, setPermissions, applyParsedPermissions, usersData, currentUser } = useAuth();
-  const { caidatData, fetchModule } = useData();
+  const { caidatData, fetchModule, fetchUsersData } = useData();
 
   const [activeTab, setActiveTab] = useState('system'); // 'system' | 'warehouses' | 'permissions' | 'userRestrictions' | 'sheetTable' | 'backup'
   const [selectedRole, setSelectedRole] = useState('ADMIN');
@@ -44,6 +44,13 @@ export function CaidatModule() {
   const [isSaving, setIsSaving] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [message, setMessage] = useState({ text: '', type: 'info' });
+
+  // Lazy load users data for Caidat user restrictions
+  useEffect(() => {
+    if ((!usersData || usersData.length === 0) && currentUser?.role === 'ADMIN') {
+      fetchUsersData();
+    }
+  }, [usersData, currentUser, fetchUsersData]);
 
   // System form state
   const [sysAppName, setSysAppName] = useState(appSettings?.appName || 'LNK TỒN KHO - ERP SYSTEM');

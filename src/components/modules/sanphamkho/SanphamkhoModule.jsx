@@ -59,6 +59,13 @@ export function SanphamkhoModule({ initialFilterProductId = '' }) {
   const [editRow, setEditRow] = useState(null);
   const [isExcelModalOpen, setIsExcelModalOpen] = useState(false);
 
+  // Lazy load sanphamkho data on demand
+  React.useEffect(() => {
+    if (!warehouseProductData || warehouseProductData.length <= 1) {
+      fetchModule('sanphamkho');
+    }
+  }, [warehouseProductData, fetchModule]);
+
   const warehouses = getWarehouseOptions();
 
   // Calculated stock per warehouse

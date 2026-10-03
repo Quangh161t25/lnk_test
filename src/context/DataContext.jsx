@@ -110,7 +110,7 @@ export function DataProvider({ children }) {
           gender: normalizeLoginValue(iGender !== -1 ? r[iGender] : r[3]),
           birthDate: normalizeLoginValue(iBirthDate !== -1 ? r[iBirthDate] : r[4]),
           role: normalizeLoginValue(iRole !== -1 ? r[iRole] : r[5]),
-          password: normalizeLoginValue(iPass !== -1 ? r[iPass] : r[6]),
+          password: '', // Masked for security
           type: normalizeLoginValue(iType !== -1 ? r[iType] : r[7])
         })).filter(u => u.id);
 
@@ -154,21 +154,15 @@ export function DataProvider({ children }) {
     }
   }, [applyParsedSettings, applyParsedPermissions]);
 
-  // Fetch All Modules
+  // Fetch Initial Essential Data (Home/Dashboard data only; other modules lazy-load on navigation)
   const fetchAllData = useCallback(async () => {
     setSyncStatus('SYNCING');
     try {
       await Promise.allSettled([
-        fetchUsersData(),
         fetchModule('caidat'),
         fetchModule('nhap'),
-        fetchModule('dukien'),
         fetchModule('xuat'),
-        fetchModule('chuyenkho'),
-        fetchModule('sanpham'),
-        fetchModule('sanphamkho'),
-        fetchModule('ton_npp'),
-        fetchModule('doisoat')
+        fetchModule('sanpham')
       ]);
       setSyncStatus('SUCCESS');
       setLastSyncedTime(new Date());
@@ -176,7 +170,7 @@ export function DataProvider({ children }) {
       setSyncStatus('ERROR');
       console.error("fetchAllData error:", err);
     }
-  }, [fetchUsersData, fetchModule]);
+  }, [fetchModule]);
 
   // Append multiple rows to a module
   const appendRows = async (moduleName, rowsArray) => {

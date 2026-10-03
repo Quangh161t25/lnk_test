@@ -54,6 +54,13 @@ export function KhachhangModule() {
   const [editUser, setEditUser] = useState(null);
   const [isExcelModalOpen, setIsExcelModalOpen] = useState(false);
 
+  // Lazy load customer data when visiting KhachhangModule
+  React.useEffect(() => {
+    if (!usersData || usersData.length === 0) {
+      fetchUsersData();
+    }
+  }, [usersData, fetchUsersData]);
+
   const handleDeleteCustomer = async (u) => {
     if (!u.sheetRow) return;
     if (window.confirm(`Bạn có chắc chắn muốn xóa đối tác: ${u.id} - ${u.name}?`)) {

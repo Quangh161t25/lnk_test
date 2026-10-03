@@ -62,6 +62,13 @@ export function DukienModule({ onNavigate }) {
   const [editOrderRows, setEditOrderRows] = useState(null);
   const [isExcelModalOpen, setIsExcelModalOpen] = useState(false);
 
+  // Lazy load dukien data on demand
+  React.useEffect(() => {
+    if (!dukienData || dukienData.length <= 1) {
+      fetchModule('dukien');
+    }
+  }, [dukienData, fetchModule]);
+
   // Filtered rows
   const filteredRows = useMemo(() => {
     const rawRows = (dukienData || []).slice(1).map((r, idx) => {

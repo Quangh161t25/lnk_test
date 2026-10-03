@@ -58,6 +58,13 @@ export function TonNppModule() {
   const [editRow, setEditRow] = useState(null);
   const [isExcelModalOpen, setIsExcelModalOpen] = useState(false);
 
+  // Lazy load ton_npp data on demand
+  React.useEffect(() => {
+    if (!tonNppData || tonNppData.length <= 1) {
+      fetchModule('ton_npp');
+    }
+  }, [tonNppData, fetchModule]);
+
   const roleKey = currentUser ? resolveRoleKey(currentUser.role) : '';
 
   const getCustomerName = (maKh) => {

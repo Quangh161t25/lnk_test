@@ -64,6 +64,13 @@ export function ChuyenkhoModule() {
   const [editRow, setEditRow] = useState(null);
   const [isExcelModalOpen, setIsExcelModalOpen] = useState(false);
 
+  // Lazy load chuyenkho data on demand
+  React.useEffect(() => {
+    if (!transferData || transferData.length <= 1) {
+      fetchModule('chuyenkho');
+    }
+  }, [transferData, fetchModule]);
+
   const warehouses = getWarehouseOptions();
 
   // Filtered rows
