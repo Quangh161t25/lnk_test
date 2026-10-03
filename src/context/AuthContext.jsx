@@ -1,0 +1,237 @@
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { getLocalItem, setLocalItem, removeLocalItem, STORAGE_KEYS } from '../utils/storage';
+import { normalizeLoginValue } from '../utils/formatters';
+import { DEFAULT_PERMISSIONS } from '../config/defaultPermissions';
+import { MODULE_DEFINITIONS } from '../config/constants';
+
+const AuthContext = createContext(null);
+
+function mergePermissionsWithDefaults(cached) {
+  if (!cached || typeof cached !== 'object') {
+    return DEFAULT_PERMISSIONS;
+  }
+  const mergedRoles = { ...DEFAULT_PERMISSIONS.roles };
+  if (cached.roles) {
+    Object.keys(cached.roles).forEach(r => {
+      const defMods = DEFAULT_PERMISSIONS.roles[r]?.modules || [];
+      const cachedMods = cached.roles[r]?.modules || [];
+      const combined = Array.from(new Set([...cachedMods]));
+      
+      if (r.toUpperCase() === 'ADMIN') {
+        MODULE_DEFINITIONS.forEach(m => {
+          if (!combined.includes(m.key)) combined.push(m.key);
+        });
+      } else if (defMods.includes('tongquan') && !combined.includes('tongquan')) {
+        combined.push('tongquan');
+      }
+
+      mergedRoles[r] = {
+        ...DEFAULT_PERMISSIONS.roles[r],
+        ...cached.roles[r],
+        modules: combined
+      };
+    });
+  }
+  return {
+    ...DEFAULT_PERMISSIONS,
+    ...cached,
+    roles: mergedRoles
+  };
+}
+
+export function AuthProvider({ children }) {
+  const [loggedInUser, setLoggedInUser] = useState(() => getLocalItem(STORAGE_KEYS.SESSION, null));
+  const [currentUser, setCurrentUser] = useState(() => getLocalItem(STORAGE_KEYS.SESSION, null));
+  const [usersData, setUsersData] = useState(() => getLocalItem(STORAGE_KEYS.USERS_CACHE, []));
+  const [permissions, setPermissions] = useState(() => {
+    const cached = getLocalItem(STORAGE_KEYS.PERMISSIONS, null);
+    const merged = mergePermissionsWithDefaults(cached);
+    setLocalItem(STORAGE_KEYS.PERMISSIONS, merged);
+    return merged;
+  });
+
+  useEffect(() => {
+    if (loggedInUser) {
+      setLocalItem(STORAGE_KEYS.SESSION, loggedInUser);
+    } else {
+      removeLocalItem(STORAGE_KEYS.SESSION);
+    }
+  }, [loggedInUser]);
+
+  const updateUsers = useCallback((newUsers) => {
+    setUsersData(newUsers);
+    setLocalItem(STORAGE_KEYS.USERS_CACHE, newUsers);
+
+    setLoggedInUser(prevLoggedIn => {
+      if (!prevLoggedIn) return null;
+      const freshLoggedIn = newUsers.find(u => u.id?.toLowerCase() === prevLoggedIn.id?.toLowerCase());
+      if (freshLoggedIn && JSON.stringify(freshLoggedIn) !== JSON.stringify(prevLoggedIn)) {
+        return freshLoggedIn;
+      }
+      return prevLoggedIn;
+    });
+
+    setCurrentUser(prevCurrent => {
+      if (!prevCurrent) return null;
+      const fresh = newUsers.find(u => u.id?.toLowerCase() === prevCurrent.id?.toLowerCase());
+      if (fresh && JSON.stringify(fresh) !== JSON.stringify(prevCurrent)) {
+        return fresh;
+      }
+      return prevCurrent;
+    });
+  }, []);
+
+  const login = useCallback(async (id, password) => {
+    const normId = normalizeLoginValue(id).toLowerCase();
+    const normPass = normalizeLoginValue(password);
+
+    if (!normId || !normPass) {
+      throw new Error("Vui lòng nhập đầy đủ ID tài khoản và mật khẩu.");
+    }
+
+    const foundUser = usersData.find(
+      u => normalizeLoginValue(u.id).toLowerCase() === normId && normalizeLoginValue(u.password) === normPass
+    );
+
+    if (!foundUser) {
+      throw new Error("Tài khoản hoặc mật khẩu không chính xác!");
+    }
+
+    setLoggedInUser(foundUser);
+    setCurrentUser(foundUser);
+    return foundUser;
+  }, [usersData]);
+
+  const logout = useCallback(() => {
+    setLoggedInUser(null);
+    setCurrentUser(null);
+    removeLocalItem(STORAGE_KEYS.SESSION);
+    if (window.location.pathname !== '/login') {
+      window.history.pushState(null, '', '/login');
+    }
+  }, []);
+
+  const isAdminSession = useCallback(() => {
+    const role = (loggedInUser?.role || '').toString().trim().toUpperCase();
+    return role === 'ADMIN';
+  }, [loggedInUser]);
+
+  const switchAdminViewAs = useCallback((userId) => {
+    if (!isAdminSession()) return;
+    if (!userId || userId === loggedInUser?.id) {
+      setCurrentUser(loggedInUser);
+    } else {
+      const target = usersData.find(u => u.id === userId);
+      if (target) setCurrentUser(target);
+    }
+  }, [isAdminSession, loggedInUser, usersData]);
+
+  const resolveRoleKey = useCallback((roleStr) => {
+    const r = (roleStr || '').toString().trim().toUpperCase();
+    if (r === 'ADMIN') return 'ADMIN';
+    if (r === 'KT' || r === 'KẾ TOÁN' || r === 'KE TOAN') return 'kt';
+    if (r === 'KHO' || r === 'THỦ KHO' || r === 'THU KHO') return 'KHO';
+    if (r === 'NPP' || r === 'NHÀ PHÂN PHỐI' || r === 'NHA PHAN PHOI') return 'NPP';
+    if (r === 'KD' || r === 'KINH DOANH') return 'KD';
+    if (r === 'NVKD' || r === 'NV KINH DOANH') return 'NVKD';
+    return r;
+  }, []);
+
+  const getAllowedModules = useCallback(() => {
+    if (!currentUser) return [];
+    const roleKey = resolveRoleKey(currentUser.role);
+    if (roleKey === 'ADMIN') {
+      return MODULE_DEFINITIONS.map(m => m.key);
+    }
+    const roleConfig = permissions?.roles?.[roleKey] || permissions?.roles?.[currentUser.role] || DEFAULT_PERMISSIONS.roles[roleKey] || {};
+    let modules = roleConfig.modules || DEFAULT_PERMISSIONS.roles[roleKey]?.modules || [];
+    if (DEFAULT_PERMISSIONS.roles[roleKey]?.modules?.includes('tongquan') && !modules.includes('tongquan')) {
+      modules = [...modules, 'tongquan'];
+    }
+    return modules;
+  }, [currentUser, permissions, resolveRoleKey]);
+
+  const canAccessModule = useCallback((moduleKey) => {
+    if (!currentUser) return false;
+    if (moduleKey === 'home') return true;
+    const roleKey = resolveRoleKey(currentUser.role);
+    if (roleKey === 'ADMIN') return true;
+    const allowed = getAllowedModules();
+    return allowed.includes(moduleKey);
+  }, [currentUser, getAllowedModules, resolveRoleKey]);
+
+  const hasActionPermission = useCallback((actionKey) => {
+    if (!currentUser) return false;
+    const roleKey = resolveRoleKey(currentUser.role);
+    if (roleKey === 'ADMIN') return true;
+    const roleConfig = permissions?.roles?.[roleKey] || permissions?.roles?.[currentUser.role] || {};
+    const actions = roleConfig.actions || [];
+    return actions.includes(actionKey);
+  }, [currentUser, permissions, resolveRoleKey]);
+
+  const getHiddenProductIds = useCallback(() => {
+    if (!currentUser?.id) return [];
+    return permissions?.userRestrictions?.[currentUser.id]?.hiddenProductIds || [];
+  }, [currentUser, permissions]);
+
+  const getUserWarehouses = useCallback(() => {
+    if (!currentUser?.id) return null;
+    return permissions?.userWarehouses?.[currentUser.id] || null;
+  }, [currentUser, permissions]);
+
+  const canAccessWarehouse = useCallback((warehouseName) => {
+    const userWh = getUserWarehouses();
+    if (!userWh || !Array.isArray(userWh) || userWh.length === 0) return true;
+    const target = (warehouseName || '').toString().trim().toUpperCase();
+    return userWh.some(w => w.toString().trim().toUpperCase() === target);
+  }, [getUserWarehouses]);
+
+  const applyParsedPermissions = useCallback((parsedPermissions) => {
+    if (!parsedPermissions) return;
+    setPermissions(prev => {
+      const merged = mergePermissionsWithDefaults({
+        ...prev,
+        ...parsedPermissions,
+        roles: { ...(prev?.roles || {}), ...(parsedPermissions.roles || {}) },
+        userRestrictions: { ...(prev?.userRestrictions || {}), ...(parsedPermissions.userRestrictions || {}) },
+        userWarehouses: { ...(prev?.userWarehouses || {}), ...(parsedPermissions.userWarehouses || {}) },
+        dataScopes: { ...(prev?.dataScopes || {}), ...(parsedPermissions.dataScopes || {}) }
+      });
+      setLocalItem(STORAGE_KEYS.PERMISSIONS, merged);
+      return merged;
+    });
+  }, []);
+
+  return (
+    <AuthContext.Provider
+      value={{
+        loggedInUser,
+        currentUser,
+        usersData,
+        permissions,
+        setPermissions,
+        applyParsedPermissions,
+        updateUsers,
+        login,
+        logout,
+        switchAdminViewAs,
+        isAdminSession,
+        resolveRoleKey,
+        getAllowedModules,
+        canAccessModule,
+        hasActionPermission,
+        getHiddenProductIds,
+        getUserWarehouses,
+        canAccessWarehouse
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
+  );
+}
+
+export function useAuth() {
+  const context = useContext(AuthContext);
+  if (!context) throw new Error("useAuth must be used within an AuthProvider");
+  return context;
+}

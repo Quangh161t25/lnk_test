@@ -2,20 +2,22 @@
 setlocal
 cd /d "%~dp0"
 
-where py >nul 2>nul
-if %errorlevel%==0 (
-    start "VG ERP Local Server" /min py -m http.server 8080
-) else (
-    where python >nul 2>nul
-    if not %errorlevel%==0 (
-        echo Khong tim thay Python de chay web server.
-        echo Vui long cai Python hoac chay ung dung tren web server.
-        pause
-        exit /b 1
-    )
-    start "VG ERP Local Server" /min python -m http.server 8080
+echo ===================================================
+echo   KHO HANG LNK ERP - KHOI DONG HE THONG REACT VITE
+echo ===================================================
+echo.
+
+where npm >nul 2>nul
+if not %errorlevel%==0 (
+    echo [LOI] Khong tim thay Node.js va npm tren may tinh cua ban.
+    echo Vui long cai dat Node.js tu https://nodejs.org de chay ung dung.
+    pause
+    exit /b 1
 )
 
-timeout /t 2 /nobreak >nul
-start "" "http://localhost:8080/index.html"
+echo Dang khoi dong Web Server Vite tai http://localhost:3000 ...
+start "LNK Kho ERP Server" /min cmd /c "npm run dev"
+
+timeout /t 3 /nobreak >nul
+start "" "http://localhost:3000"
 endlocal
