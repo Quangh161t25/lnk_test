@@ -3,6 +3,7 @@ import { getLocalItem, setLocalItem, removeLocalItem, STORAGE_KEYS } from '../ut
 import { normalizeLoginValue } from '../utils/formatters';
 import { DEFAULT_PERMISSIONS } from '../config/defaultPermissions';
 import { MODULE_DEFINITIONS } from '../config/constants';
+import { loginWithServerAuth } from '../services/googleSheetsService';
 
 const AuthContext = createContext(null);
 
@@ -13,11 +14,12 @@ function mergePermissionsWithDefaults(cached) {
   const mergedRoles = { ...DEFAULT_PERMISSIONS.roles };
   if (cached.roles) {
     Object.keys(cached.roles).forEach(r => {
-      const defMods = DEFAULT_PERMISSIONS.roles[r]?.modules || [];
+      const upperRole = r.toUpperCase();
+      const defMods = DEFAULT_PERMISSIONS.roles[upperRole]?.modules || [];
       const cachedMods = cached.roles[r]?.modules || [];
       const combined = Array.from(new Set([...cachedMods]));
       
-      if (r.toUpperCase() === 'ADMIN') {
+      if (upperRole === 'ADMIN') {
         MODULE_DEFINITIONS.forEach(m => {
           if (!combined.includes(m.key)) combined.push(m.key);
         });
@@ -25,9 +27,9 @@ function mergePermissionsWithDefaults(cached) {
         combined.push('tongquan');
       }
 
-      mergedRoles[r] = {
-        ...DEFAULT_PERMISSIONS.roles[r],
-        ...cached.roles[r],
+      mergedRoles[upperRole] = {
+        ...(DEFAULT_PERMISSIONS.roles[upperRole] || {}),
+        ...(cached.roles[r] || {}),
         modules: combined
       };
     });
@@ -89,17 +91,29 @@ export function AuthProvider({ children }) {
       throw new Error("Vui lòng nhập đầy đủ ID tài khoản và mật khẩu.");
     }
 
-    const foundUser = usersData.find(
-      u => normalizeLoginValue(u.id).toLowerCase() === normId && normalizeLoginValue(u.password) === normPass
-    );
+    try {
+      // 1. Try secure server-side login
+      const result = await loginWithServerAuth(id, password);
+      if (result && result.success && result.user) {
+        setLoggedInUser(result.user);
+        setCurrentUser(result.user);
+        return result.user;
+      }
+    } catch (serverErr) {
+      console.warn("Server auth error, trying local fallback:", serverErr.message);
+      const foundUser = usersData.find(
+        u => normalizeLoginValue(u.id).toLowerCase() === normId && normalizeLoginValue(u.password) === normPass
+      );
 
-    if (!foundUser) {
-      throw new Error("Tài khoản hoặc mật khẩu không chính xác!");
+      if (foundUser) {
+        const sanitized = { ...foundUser };
+        delete sanitized.password;
+        setLoggedInUser(sanitized);
+        setCurrentUser(sanitized);
+        return sanitized;
+      }
+      throw new Error(serverErr.message || "Tài khoản hoặc mật khẩu không chính xác!");
     }
-
-    setLoggedInUser(foundUser);
-    setCurrentUser(foundUser);
-    return foundUser;
   }, [usersData]);
 
   const logout = useCallback(() => {
@@ -129,7 +143,7 @@ export function AuthProvider({ children }) {
   const resolveRoleKey = useCallback((roleStr) => {
     const r = (roleStr || '').toString().trim().toUpperCase();
     if (r === 'ADMIN') return 'ADMIN';
-    if (r === 'KT' || r === 'KẾ TOÁN' || r === 'KE TOAN') return 'kt';
+    if (r === 'KT' || r === 'KẾ TOÁN' || r === 'KE TOAN') return 'KT';
     if (r === 'KHO' || r === 'THỦ KHO' || r === 'THU KHO') return 'KHO';
     if (r === 'NPP' || r === 'NHÀ PHÂN PHỐI' || r === 'NHA PHAN PHOI') return 'NPP';
     if (r === 'KD' || r === 'KINH DOANH') return 'KD';
