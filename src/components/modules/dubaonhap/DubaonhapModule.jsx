@@ -43,7 +43,7 @@ const DEFAULT_DUBAONHAP_COLUMNS = [
 ];
 
 export function DubaonhapModule({ onNavigate }) {
-  const { productData, xuatData, dukienData, nhapData, transferData, warehouseProductData } = useData();
+  const { productData, xuatData, dukienData, nhapData, transferData, warehouseProductData, fetchModule } = useData();
 
   // Column Manager Hook
   const {
@@ -57,6 +57,14 @@ export function DubaonhapModule({ onNavigate }) {
     moveColumn,
     resetToDefault
   } = useColumnManager('dubaonhap', DEFAULT_DUBAONHAP_COLUMNS);
+
+  // Lazy load required forecasting data on demand
+  React.useEffect(() => {
+    if (!productData || productData.length <= 1) fetchModule('sanpham');
+    if (!xuatData || xuatData.length <= 1) fetchModule('xuat');
+    if (!dukienData || dukienData.length <= 1) fetchModule('dukien');
+    if (!nhapData || nhapData.length <= 1) fetchModule('nhap');
+  }, [productData, xuatData, dukienData, nhapData, fetchModule]);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL'); // 'ALL' | 'KHAN_CAP' | 'CAN_NHAP' | 'AN_TOAN' | 'THUA_HANG'

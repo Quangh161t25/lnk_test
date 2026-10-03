@@ -83,6 +83,11 @@ export function XuatModule() {
 
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [editOrderRows, setEditOrderRows] = useState(null);
+
+  // Lazy load xuat data on demand
+  React.useEffect(() => {
+    if (!xuatData || xuatData.length <= 1) fetchModule('xuat');
+  }, [xuatData, fetchModule]);
   const [isExcelModalOpen, setIsExcelModalOpen] = useState(false);
   const [isBarcodeModalOpen, setIsBarcodeModalOpen] = useState(false);
   const [isOcrModalOpen, setIsOcrModalOpen] = useState(false);

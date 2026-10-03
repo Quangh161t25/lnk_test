@@ -35,12 +35,10 @@ function getModuleFromLocation() {
 
 export function App() {
   const { currentUser, canAccessModule, getAllowedModules } = useAuth();
-  const { fetchAllData } = useData();
 
   const [activeModule, setActiveModule] = useState(getModuleFromLocation);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [navParams, setNavParams] = useState(null);
-  const hasFetchedRef = useRef(false);
 
   // Sync module change to browser address bar URL
   const navigateToModule = (mod, params = null) => {
@@ -51,18 +49,6 @@ export function App() {
       window.history.pushState(null, '', targetPath);
     }
   };
-
-  // Initial data load on login
-  useEffect(() => {
-    if (currentUser?.id) {
-      if (!hasFetchedRef.current) {
-        hasFetchedRef.current = true;
-        fetchAllData();
-      }
-    } else {
-      hasFetchedRef.current = false;
-    }
-  }, [currentUser?.id, fetchAllData]);
 
   // Handle browser Back / Forward buttons
   useEffect(() => {

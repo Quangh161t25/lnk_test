@@ -73,6 +73,11 @@ export function NhapModule() {
   const [loaiHinhFilter, setLoaiHinhFilter] = useState('');
   const [partnerFilter, setPartnerFilter] = useState('');
   const [maSpFilter, setMaSpFilter] = useState('');
+
+  // Lazy load nhap data on demand
+  React.useEffect(() => {
+    if (!nhapData || nhapData.length <= 1) fetchModule('nhap');
+  }, [nhapData, fetchModule]);
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [currentPage, setCurrentPage] = useState(1);

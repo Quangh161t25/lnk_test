@@ -65,6 +65,13 @@ export function SanphamModule({ onNavigateWithFilter }) {
   const [editRow, setEditRow] = useState(null);
   const [isExcelModalOpen, setIsExcelModalOpen] = useState(false);
 
+  // Lazy load product & transaction data on demand
+  React.useEffect(() => {
+    if (!productData || productData.length <= 1) fetchModule('sanpham');
+    if (!nhapData || nhapData.length <= 1) fetchModule('nhap');
+    if (!xuatData || xuatData.length <= 1) fetchModule('xuat');
+  }, [productData, nhapData, xuatData, fetchModule]);
+
   const aggregates = useMemo(() => {
     return calculateProductAggregates(nhapData, xuatData, transferData, warehouseProductData);
   }, [nhapData, xuatData, transferData, warehouseProductData]);
