@@ -38,9 +38,26 @@ const DEFAULT_SANPHAM_COLUMNS = [
 ];
 
 export function SanphamModule({ onNavigateWithFilter }) {
-  const { productData, nhapData, xuatData, transferData, warehouseProductData, appendRow, updateRow, deleteRow, fetchModule, loadingModules } = useData();
+  const { 
+    productData, 
+    nhapData, 
+    xuatData, 
+    transferData, 
+    warehouseProductData, 
+    aggregatesData, 
+    nppProductIdsData, 
+    fetchAggregatesData, 
+    appendRow, 
+    updateRow, 
+    deleteRow, 
+    fetchModule, 
+    loadingModules 
+  } = useData();
   const { currentUser, hasActionPermission, getHiddenProductIds, resolveRoleKey } = useAuth();
   const { appSettings } = useSettings();
+
+  const roleKey = currentUser ? resolveRoleKey(currentUser.role) : '';
+  const lowStockThreshold = appSettings?.lowStockThreshold || 10;
 
   // Column Manager Hook
   const {
@@ -66,47 +83,46 @@ export function SanphamModule({ onNavigateWithFilter }) {
   const [editRow, setEditRow] = useState(null);
   const [isExcelModalOpen, setIsExcelModalOpen] = useState(false);
 
-  // Always fetch latest product & transaction data on mount
+  // Always fetch latest product & aggregated stock data on mount (avoiding raw sales/purchase downloads)
   React.useEffect(() => {
     fetchModule('sanpham');
-    fetchModule('sanphamkho');
-    fetchModule('nhap');
-    fetchModule('xuat');
-    fetchModule('chuyenkho');
-  }, [fetchModule]);
+    const nppId = roleKey === 'NPP' ? currentUser?.id : '';
+    const nppName = roleKey === 'NPP' ? currentUser?.name : '';
+    fetchAggregatesData({ nppId, nppName });
+  }, [fetchModule, fetchAggregatesData, roleKey, currentUser]);
 
   const handleRefreshAll = async () => {
+    const nppId = roleKey === 'NPP' ? currentUser?.id : '';
+    const nppName = roleKey === 'NPP' ? currentUser?.name : '';
     await Promise.all([
       fetchModule('sanpham', true),
-      fetchModule('sanphamkho', true),
-      fetchModule('nhap', true),
-      fetchModule('xuat', true),
-      fetchModule('chuyenkho', true)
+      fetchAggregatesData({ force: true, nppId, nppName })
     ]);
   };
 
-  const isLoading = Boolean(
-    loadingModules?.sanpham ||
-    loadingModules?.sanphamkho ||
-    loadingModules?.nhap ||
-    loadingModules?.xuat ||
-    loadingModules?.chuyenkho
-  );
+  const isLoading = Boolean(loadingModules?.sanpham || loadingModules?.aggregates);
 
   const aggregates = useMemo(() => {
+    if (aggregatesData && Object.keys(aggregatesData).length > 0) {
+      const map = new Map();
+      Object.entries(aggregatesData).forEach(([k, v]) => {
+        map.set(k.toLowerCase(), v);
+      });
+      return map;
+    }
     return calculateProductAggregates(nhapData, xuatData, transferData, warehouseProductData);
-  }, [nhapData, xuatData, transferData, warehouseProductData]);
+  }, [aggregatesData, nhapData, xuatData, transferData, warehouseProductData]);
 
   const hiddenIdsSet = useMemo(() => {
     return new Set(getHiddenProductIds().map(id => id.toLowerCase()));
   }, [getHiddenProductIds]);
 
-  const roleKey = currentUser ? resolveRoleKey(currentUser.role) : '';
-  const lowStockThreshold = appSettings?.lowStockThreshold || 10;
-
   // For NPP user: get the list of product IDs ever exported to this NPP
   const nppExportedProductIds = useMemo(() => {
     if (roleKey !== 'NPP' || !currentUser) return null;
+    if (nppProductIdsData && nppProductIdsData.length > 0) {
+      return new Set(nppProductIdsData.map(id => id.toLowerCase()));
+    }
     const userCustId = (currentUser.id || '').toString().trim().toLowerCase();
     const userCustName = (currentUser.name || '').toString().trim().toLowerCase();
 
@@ -127,7 +143,7 @@ export function SanphamModule({ onNavigateWithFilter }) {
     });
 
     return productIdsSet;
-  }, [roleKey, currentUser, xuatData]);
+  }, [roleKey, currentUser, nppProductIdsData, xuatData]);
 
   // Base accessible product rows (applying hidden products and NPP restrictions)
   const accessibleRows = useMemo(() => {

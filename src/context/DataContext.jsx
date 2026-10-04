@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { CONFIG } from '../config/constants';
 import { SIMPLE_SHEET_MODULES } from '../config/dataSources';
-import { fetchSheetValues, updateSheetRange, appendSheetValues } from '../services/googleSheetsService';
+import { fetchSheetValues, fetchAggregates, updateSheetRange, appendSheetValues } from '../services/googleSheetsService';
 import { parseCaiDatRows, saveCaiDatToGoogleSheet, buildCaiDatRows } from '../services/caiDatService';
 import { getLocalItem, setLocalItem, STORAGE_KEYS } from '../utils/storage';
 import { cleanNumber, normalizeLoginValue } from '../utils/formatters';
@@ -23,6 +23,8 @@ export function DataProvider({ children }) {
   const [tonNppData, setTonNppData] = useState(() => getLocalItem(STORAGE_KEYS.TON_NPP_CACHE, []));
   const [doisoatData, setDoisoatData] = useState(() => getLocalItem(STORAGE_KEYS.RECONCILIATION_CACHE, []));
   const [caidatData, setCaidatData] = useState(() => getLocalItem(STORAGE_KEYS.CAIDAT_CACHE, []));
+  const [aggregatesData, setAggregatesData] = useState(() => getLocalItem('lnk_aggregates_cache', {}));
+  const [nppProductIdsData, setNppProductIdsData] = useState(() => getLocalItem('lnk_npp_products_cache', []));
 
   const [loadingModules, setLoadingModules] = useState({});
   const [syncStatus, setSyncStatus] = useState('IDLE'); // 'IDLE' | 'SYNCING' | 'ERROR' | 'SUCCESS'
@@ -165,6 +167,30 @@ export function DataProvider({ children }) {
     inFlightFetches.current[moduleName] = fetchPromise;
     return fetchPromise;
   }, [applyParsedSettings, applyParsedPermissions]);
+
+  // Fetch stock aggregates computed server-side (avoids sending raw order sheets across network)
+  const fetchAggregatesData = useCallback(async (options = {}) => {
+    const { force = false, nppId = '', nppName = '' } = options;
+    setLoadingModules(prev => ({ ...prev, aggregates: true }));
+    try {
+      const res = await fetchAggregates({ force, nppId, nppName });
+      if (res && res.aggregates) {
+        setAggregatesData(res.aggregates);
+        setLocalItem('lnk_aggregates_cache', res.aggregates);
+        if (res.nppProductIds) {
+          setNppProductIdsData(res.nppProductIds);
+          setLocalItem('lnk_npp_products_cache', res.nppProductIds);
+        }
+        return res;
+      }
+      return { aggregates: {}, nppProductIds: [] };
+    } catch (err) {
+      console.error("fetchAggregatesData error:", err);
+      return { aggregates: aggregatesData, nppProductIds: nppProductIdsData };
+    } finally {
+      setLoadingModules(prev => ({ ...prev, aggregates: false }));
+    }
+  }, [aggregatesData, nppProductIdsData]);
 
   // Fetch Essential System Configuration (Home only needs system settings/permissions; business sheets lazy-load on navigation)
   const fetchAllData = useCallback(async () => {
@@ -324,6 +350,9 @@ export function DataProvider({ children }) {
         tonNppData,
         doisoatData,
         caidatData,
+        aggregatesData,
+        nppProductIdsData,
+        fetchAggregatesData,
         loadingModules,
         syncStatus,
         lastSyncedTime,

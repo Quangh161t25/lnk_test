@@ -221,6 +221,50 @@ async function callSheetClear(sheetName, range) {
   return await response.json();
 }
 
+// Payload Encryption: AES-256-GCM (Protects sheet data from DevTools network sniffing)
+const ENCRYPTION_SECRET = process.env.PAYLOAD_SECRET || "lnk-secure-payload-encryption-v2-key-2026";
+let cachedAggregatesResult = null;
+let cachedAggregatesTime = 0;
+const AGGREGATES_CACHE_TTL = 15000; // 15 seconds memory cache
+
+function encryptPayload(dataObj) {
+  try {
+    const iv = crypto.randomBytes(12);
+    const key = crypto.createHash('sha256').update(ENCRYPTION_SECRET).digest();
+    const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
+    const jsonStr = JSON.stringify(dataObj);
+    const encrypted = Buffer.concat([cipher.update(jsonStr, 'utf8'), cipher.final()]);
+    const tag = cipher.getAuthTag();
+    const combined = Buffer.concat([encrypted, tag]);
+    return {
+      success: true,
+      encrypted: true,
+      iv: iv.toString('base64'),
+      data: combined.toString('base64')
+    };
+  } catch (err) {
+    console.error('Payload encryption error:', err);
+    return dataObj;
+  }
+}
+
+function cleanNumber(val) {
+  if (val === null || val === undefined || val === '') return 0;
+  if (typeof val === 'number') return isNaN(val) ? 0 : val;
+  let s = String(val).trim().replace(/\s+/g, '');
+  if (s.includes(',') && s.includes('.')) {
+    if (s.lastIndexOf(',') > s.lastIndexOf('.')) {
+      s = s.replace(/\./g, '').replace(',', '.');
+    } else {
+      s = s.replace(/,/g, '');
+    }
+  } else if (s.includes(',')) {
+    s = s.replace(',', '.');
+  }
+  const n = parseFloat(s);
+  return isNaN(n) ? 0 : n;
+}
+
 // Serverless Handler (Vercel Node.js Function)
 export default async function handler(req, res) {
   // Security Headers
@@ -370,13 +414,129 @@ export default async function handler(req, res) {
         return res.status(401).json({ success: false, error: 'Tài khoản hoặc mật khẩu không chính xác!' });
       }
 
-      return res.status(200).json({
+      return res.status(200).json(encryptPayload({
         success: true,
         user: matchedUser
-      });
+      }));
     }
 
-    // 2. FETCH SHEET VALUES
+    // 2. SERVER-SIDE STOCK AGGREGATIONS (Eliminates raw transaction downloads in DevTools)
+    if (action === 'aggregates') {
+      const force = (req.query?.force || url.searchParams.get('force') || (body && body.force)) === 'true';
+      const nppId = (req.query?.nppId || url.searchParams.get('nppId') || (body && body.nppId) || '').toString().trim().toLowerCase();
+      const nppName = (req.query?.nppName || url.searchParams.get('nppName') || (body && body.nppName) || '').toString().trim().toLowerCase();
+
+      const now = Date.now();
+      let rawAggregates = null;
+
+      if (!force && cachedAggregatesResult && (now - cachedAggregatesTime < AGGREGATES_CACHE_TTL)) {
+        rawAggregates = cachedAggregatesResult;
+      } else {
+        const [spKhoRes, nhapRes, xuatRes] = await Promise.all([
+          callSheetFetch('DS_SP_KHO', 'A1:F50000').catch(() => []),
+          callSheetFetch('NHAP_CT', 'A1:Q60000').catch(() => []),
+          callSheetFetch('XUAT_CT', 'A1:O60000').catch(() => [])
+        ]);
+
+        const aggregatesMap = {};
+        const nppExportMap = {};
+
+        const spRows = Array.isArray(spKhoRes) ? spKhoRes : (spKhoRes?.values || []);
+        const nhapRows = Array.isArray(nhapRes) ? nhapRes : (nhapRes?.values || []);
+        const xuatRows = Array.isArray(xuatRes) ? xuatRes : (xuatRes?.values || []);
+
+        const findCol = (rows, candidates, fallback) => {
+          if (!rows || rows.length === 0) return fallback;
+          const headers = (rows[0] || []).map(h => (h || '').toString().trim().toLowerCase());
+          for (const c of candidates) {
+            const idx = headers.findIndex(h => h.includes(c));
+            if (idx !== -1) return idx;
+          }
+          return fallback;
+        };
+
+        const iSpKhoId = findCol(spRows, ['id_sp', 'ma_sp'], 2);
+        const iSpKhoTonDau = findCol(spRows, ['ton_dau'], 4);
+
+        const iNhapSpId = findCol(nhapRows, ['id_sp', 'ma_sp'], 6);
+        const iNhapSlg = findCol(nhapRows, ['slg', 'so_luong'], 8);
+
+        const iXuatCustId = findCol(xuatRows, ['ma_kh'], 4);
+        const iXuatCustName = findCol(xuatRows, ['ten_khach', 'ten_kh'], 5);
+        const iXuatSpId = findCol(xuatRows, ['id_sp', 'ma_sp'], 6);
+        const iXuatSlg = findCol(xuatRows, ['slg', 'so_luong'], 8);
+
+        // 1. Ton dau from DS_SP_KHO
+        spRows.slice(1).forEach(row => {
+          const idSp = (row[iSpKhoId] || '').toString().trim().toLowerCase();
+          if (!idSp) return;
+          const tonDau = cleanNumber(row[iSpKhoTonDau]);
+          if (!aggregatesMap[idSp]) {
+            aggregatesMap[idSp] = { tonDau: 0, tongNhap: 0, tongXuat: 0, tonCuoi: 0 };
+          }
+          aggregatesMap[idSp].tonDau += tonDau;
+        });
+
+        // 2. Nhap from NHAP_CT
+        nhapRows.slice(1).forEach(row => {
+          const idSp = (row[iNhapSpId] || '').toString().trim().toLowerCase();
+          if (!idSp) return;
+          const slg = cleanNumber(row[iNhapSlg]);
+          if (!aggregatesMap[idSp]) {
+            aggregatesMap[idSp] = { tonDau: 0, tongNhap: 0, tongXuat: 0, tonCuoi: 0 };
+          }
+          aggregatesMap[idSp].tongNhap += slg;
+        });
+
+        // 3. Xuat from XUAT_CT
+        xuatRows.slice(1).forEach(row => {
+          const idSp = (row[iXuatSpId] || '').toString().trim().toLowerCase();
+          if (!idSp) return;
+          const slg = cleanNumber(row[iXuatSlg]);
+          if (!aggregatesMap[idSp]) {
+            aggregatesMap[idSp] = { tonDau: 0, tongNhap: 0, tongXuat: 0, tonCuoi: 0 };
+          }
+          aggregatesMap[idSp].tongXuat += slg;
+
+          const custId = (row[iXuatCustId] || '').toString().trim().toLowerCase();
+          const custName = (row[iXuatCustName] || '').toString().trim().toLowerCase();
+          if (custId) {
+            if (!nppExportMap[custId]) nppExportMap[custId] = new Set();
+            nppExportMap[custId].add(idSp);
+          }
+          if (custName) {
+            if (!nppExportMap[custName]) nppExportMap[custName] = new Set();
+            nppExportMap[custName].add(idSp);
+          }
+        });
+
+        // 4. tonCuoi = tonDau + tongNhap - tongXuat
+        for (const key in aggregatesMap) {
+          const item = aggregatesMap[key];
+          item.tonCuoi = item.tonDau + item.tongNhap - item.tongXuat;
+        }
+
+        rawAggregates = { aggregatesMap, nppExportMap };
+        cachedAggregatesResult = rawAggregates;
+        cachedAggregatesTime = now;
+      }
+
+      let nppProductIds = [];
+      if (nppId || nppName) {
+        const idSet = (rawAggregates.nppExportMap && rawAggregates.nppExportMap[nppId]) || new Set();
+        const nameSet = (rawAggregates.nppExportMap && rawAggregates.nppExportMap[nppName]) || new Set();
+        const combined = new Set([...idSet, ...nameSet]);
+        nppProductIds = Array.from(combined);
+      }
+
+      return res.status(200).json(encryptPayload({
+        success: true,
+        aggregates: rawAggregates.aggregatesMap,
+        nppProductIds
+      }));
+    }
+
+    // 3. FETCH SHEET VALUES
     if (action === 'fetch') {
       const rawSheet = req.query?.sheet || url.searchParams.get('sheet') || (body && body.sheet);
       const sheetName = (rawSheet || '').toString().trim();
@@ -387,10 +547,10 @@ export default async function handler(req, res) {
       }
 
       const values = await callSheetFetch(sheetName, range);
-      return res.status(200).json({ success: true, values });
+      return res.status(200).json(encryptPayload({ success: true, values }));
     }
 
-    // 3. UPDATE SHEET RANGE
+    // 4. UPDATE SHEET RANGE
     if (action === 'update') {
       if (req.method !== 'POST') {
         return res.status(405).json({ success: false, error: 'Chỉ chấp nhận phương thức POST cho cập nhật.' });
@@ -413,11 +573,12 @@ export default async function handler(req, res) {
         }
       }
 
+      cachedAggregatesResult = null; // Invalidate cached stock aggregates
       const result = await callSheetUpdate(rawSheet, rawRange, values, valueInputOption);
-      return res.status(200).json({ success: true, result });
+      return res.status(200).json(encryptPayload({ success: true, result }));
     }
 
-    // 4. APPEND SHEET ROWS
+    // 5. APPEND SHEET ROWS
     if (action === 'append') {
       if (req.method !== 'POST') {
         return res.status(405).json({ success: false, error: 'Chỉ chấp nhận phương thức POST cho thêm dòng.' });
@@ -431,11 +592,12 @@ export default async function handler(req, res) {
         return res.status(400).json({ success: false, error: 'Thông số values phải là mảng dữ liệu (Array).' });
       }
 
+      cachedAggregatesResult = null; // Invalidate cached stock aggregates
       const result = await callSheetAppend(rawSheet, values, valueInputOption);
-      return res.status(200).json({ success: true, result });
+      return res.status(200).json(encryptPayload({ success: true, result }));
     }
 
-    // 5. BATCH CLEAR AND WRITE (e.g. CAI_DAT)
+    // 6. BATCH CLEAR AND WRITE (e.g. CAI_DAT)
     if (action === 'batchClearAndWrite') {
       if (req.method !== 'POST') {
         return res.status(405).json({ success: false, error: 'Chỉ chấp nhận phương thức POST cho ghi đè batch.' });
@@ -454,9 +616,10 @@ export default async function handler(req, res) {
         return res.status(403).json({ success: false, error: 'Không cho phép batch clear trên DSNV.' });
       }
 
+      cachedAggregatesResult = null; // Invalidate cached stock aggregates
       await callSheetClear(rawSheet, range);
       const result = await callSheetUpdate(rawSheet, range, values, valueInputOption);
-      return res.status(200).json({ success: true, result });
+      return res.status(200).json(encryptPayload({ success: true, result }));
     }
 
     return res.status(400).json({ success: false, error: `Hành động không hợp lệ: ${action}` });

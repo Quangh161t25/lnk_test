@@ -36,7 +36,19 @@ const DEFAULT_DOISOAT_COLUMNS = [
 ];
 
 export function DoisoatModule() {
-  const { doisoatData, nhapData, xuatData, transferData, warehouseProductData, appendRow, updateRow, fetchModule, loadingModules } = useData();
+  const { 
+    doisoatData, 
+    nhapData, 
+    xuatData, 
+    transferData, 
+    warehouseProductData, 
+    aggregatesData, 
+    fetchAggregatesData, 
+    appendRow, 
+    updateRow, 
+    fetchModule, 
+    loadingModules 
+  } = useData();
   const { hasActionPermission } = useAuth();
 
   // Column Manager Hook
@@ -61,36 +73,31 @@ export function DoisoatModule() {
   const [editRow, setEditRow] = useState(null);
   const [isExcelModalOpen, setIsExcelModalOpen] = useState(false);
 
-  // Always fetch latest reconciliation & inventory transaction data on mount
+  // Always fetch latest reconciliation & aggregated stock data on mount
   React.useEffect(() => {
     fetchModule('doisoat');
-    fetchModule('sanphamkho');
-    fetchModule('nhap');
-    fetchModule('xuat');
-    fetchModule('chuyenkho');
-  }, [fetchModule]);
+    fetchAggregatesData();
+  }, [fetchModule, fetchAggregatesData]);
 
   const handleRefreshAll = async () => {
     await Promise.all([
       fetchModule('doisoat', true),
-      fetchModule('sanphamkho', true),
-      fetchModule('nhap', true),
-      fetchModule('xuat', true),
-      fetchModule('chuyenkho', true)
+      fetchAggregatesData({ force: true })
     ]);
   };
 
-  const isLoading = Boolean(
-    loadingModules?.doisoat || 
-    loadingModules?.sanphamkho || 
-    loadingModules?.nhap || 
-    loadingModules?.xuat ||
-    loadingModules?.chuyenkho
-  );
+  const isLoading = Boolean(loadingModules?.doisoat || loadingModules?.aggregates);
 
   const aggregates = useMemo(() => {
+    if (aggregatesData && Object.keys(aggregatesData).length > 0) {
+      const map = new Map();
+      Object.entries(aggregatesData).forEach(([k, v]) => {
+        map.set(k.toLowerCase(), v);
+      });
+      return map;
+    }
     return calculateProductAggregates(nhapData, xuatData, transferData, warehouseProductData);
-  }, [nhapData, xuatData, transferData, warehouseProductData]);
+  }, [aggregatesData, nhapData, xuatData, transferData, warehouseProductData]);
 
   // Real counts for difference filters
   const statusCounts = useMemo(() => {
