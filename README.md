@@ -1,7 +1,7 @@
 # 🚀 LNK TỒN KHO - ERP SYSTEM
 
-[![Deployed with Vercel](https://vercel.com/button)](https://lnk-test.vercel.app)
-[![Vercel Status](https://img.shields.io/badge/Vercel-Online-success?style=for-the-badge&logo=vercel)](https://lnk-test.vercel.app)
+[![Deployed with Vercel](https://vercel.com/button)](https://lnktest-3jm8.vercel.app)
+[![Vercel Status](https://img.shields.io/badge/Vercel-Online-success?style=for-the-badge&logo=vercel)](https://lnktest-3jm8.vercel.app)
 [![React](https://img.shields.io/badge/React-18.3-blue?style=for-the-badge&logo=react)](https://react.dev/)
 [![TailwindCSS](https://img.shields.io/badge/Tailwind-3.4-38B2AC?style=for-the-badge&logo=tailwind-css)](https://tailwindcss.com/)
 
@@ -10,9 +10,7 @@
 ## 🌐 ĐƯỜNG DẪN TRUY CẬP ỨNG DỤNG (LIVE DEMO)
 
 👉 **Bấm vào link bên dưới để mở ngay ứng dụng trên Vercel:**  
-### 🔗 [https://lnk-test.vercel.app](https://lnk-test.vercel.app)
-
-*(Nếu bạn sử dụng tên miền hoặc link Vercel khác, vui lòng truy cập đúng đường dẫn Vercel của bạn).*
+### 🔗 [https://lnktest-3jm8.vercel.app](https://lnktest-3jm8.vercel.app)
 
 ---
 
@@ -22,7 +20,7 @@
 
 1. Mở trang GitHub Repository: [https://github.com/Quangh161t25/lnk_test](https://github.com/Quangh161t25/lnk_test)
 2. Nhìn sang cột bên phải mục **About**, bấm vào biểu tượng bánh răng ⚙️ (**Edit repository details**).
-3. Tại ô **Website**, điền link Vercel của bạn (ví dụ: `https://lnk-test.vercel.app`).
+3. Tại ô **Website**, điền link Vercel: `https://lnktest-3jm8.vercel.app`.
 4. Tích chọn **Include in home page** $\rightarrow$ bấm **Save changes**.
 
 ---
