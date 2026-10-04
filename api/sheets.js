@@ -52,10 +52,48 @@ async function getAccessToken() {
   return cachedAccessToken;
 }
 
+// Helper to convert column letter to 0-based index (e.g. A->0, G->6, AA->26)
+function colLetterToIndex(colStr) {
+  if (!colStr) return 0;
+  let index = 0;
+  const upper = colStr.toUpperCase();
+  for (let i = 0; i < upper.length; i++) {
+    const code = upper.charCodeAt(i);
+    if (code >= 65 && code <= 90) {
+      index = index * 26 + (code - 64);
+    }
+  }
+  return Math.max(0, index - 1);
+}
+
+// Parses start column index, end column index, and start row number from A1 notation range
+function parseRangeInfo(rangeStr) {
+  if (!rangeStr) {
+    return { startColIndex: 0, endColIndex: 25, startRowNum: 1 };
+  }
+  const clean = rangeStr.replace(/.*!/, '').trim();
+  const parts = clean.split(':');
+  const startPart = parts[0] || '';
+  const endPart = parts[1] || startPart;
+
+  const startColMatch = startPart.match(/^([A-Za-z]+)/);
+  const startRowMatch = startPart.match(/^[A-Za-z]*(\d+)/);
+  const endColMatch = endPart.match(/^([A-Za-z]+)/);
+
+  const startColIndex = startColMatch ? colLetterToIndex(startColMatch[1]) : 0;
+  const endColIndex = endColMatch ? colLetterToIndex(endColMatch[1]) : (startColMatch ? startColIndex : 25);
+  const startRowNum = startRowMatch ? parseInt(startRowMatch[1], 10) : 1;
+
+  return { startColIndex, endColIndex, startRowNum };
+}
+
 // Google Sheets API Helpers
 async function callSheetFetch(sheetName, range = "A1:Z50000") {
   const token = await getAccessToken();
-  const encodedRange = encodeURIComponent(`'${sheetName}'!${range}`);
+  const cleanSheetName = (sheetName || '').replace(/['"]/g, '').split('!')[0].trim().toUpperCase();
+  const rawSheetName = (sheetName || '').replace(/['"]/g, '').split('!')[0].trim();
+  const cleanRange = (range || "A1:Z50000").replace(/.*!/, '').trim() || "A1:Z50000";
+  const encodedRange = encodeURIComponent(`'${rawSheetName}'!${cleanRange}`);
   const url = `https://sheets.googleapis.com/v4/spreadsheets/${DEFAULT_CONFIG.spreadsheetId}/values/${encodedRange}`;
   
   const response = await fetch(url, {
@@ -71,14 +109,44 @@ async function callSheetFetch(sheetName, range = "A1:Z50000") {
   let values = data.values || [];
 
   // SECURITY: If DSNV (Employees/Users) is fetched, ALWAYS sanitize passwords from response!
-  if (sheetName.toUpperCase() === 'DSNV' && values.length > 0) {
-    const headers = values[0].map(h => (h || '').toString().trim().toLowerCase());
-    const passIdx = headers.findIndex(h => h === 'password' || h === 'mat_khau' || h === 'mk');
-    const idxToMask = passIdx !== -1 ? passIdx : 6;
+  // Robust check: normalize sheetName (strip quotes, sub-range syntax, whitespace)
+  if (cleanSheetName === 'DSNV' && values.length > 0) {
+    const { startColIndex, endColIndex, startRowNum } = parseRangeInfo(cleanRange);
+    const firstRowLower = values[0].map(h => (h || '').toString().trim().toLowerCase());
+    const headerKeywords = ['id', 'ho_ten', 'họ tên', 'name', 'password', 'mat_khau', 'mk', 'quyen', 'role', 'truong', 'gioi_tinh', 'ngay_sinh'];
+    const matchCount = firstRowLower.filter(h => headerKeywords.includes(h)).length;
+    // Considered a header row only if at least 2 known schema column names are present
+    const isSingleColHeader = firstRowLower.length === 1 && ['password', 'mat_khau', 'mk'].includes(firstRowLower[0]);
+    const isHeaderRow = matchCount >= 2 ? (startRowNum === 1) : (startRowNum === 1 && isSingleColHeader);
+
+    const passIndices = new Set();
+    if (isHeaderRow) {
+      firstRowLower.forEach((h, i) => {
+        if (h === 'password' || h === 'mat_khau' || h === 'mk' || h.includes('pass') || h.includes('mật khẩu')) {
+          passIndices.add(i);
+        }
+      });
+    }
+
+    // In DSNV schema, column 6 (Col G) is password
+    // If queried range includes Col G, calculate its relative index in the returned rows
+    const colGInRange = (startColIndex <= 6 && 6 <= endColIndex);
+    if (colGInRange) {
+      const relColGIndex = 6 - startColIndex;
+      if (relColGIndex >= 0) {
+        passIndices.add(relColGIndex);
+      }
+    }
+    if (startColIndex === 0 && endColIndex >= 6) {
+      passIndices.add(6);
+    }
+
     values = values.map((row, rIdx) => {
-      if (rIdx === 0) return row;
+      if (rIdx === 0 && isHeaderRow) return row;
       const copy = [...row];
-      if (copy[idxToMask] !== undefined) copy[idxToMask] = '***'; // Mask password
+      passIndices.forEach(idx => {
+        if (copy[idx] !== undefined) copy[idx] = '***'; // Mask password
+      });
       return copy;
     });
   }
@@ -88,7 +156,9 @@ async function callSheetFetch(sheetName, range = "A1:Z50000") {
 
 async function callSheetUpdate(sheetName, range, values, valueInputOption = "USER_ENTERED") {
   const token = await getAccessToken();
-  const encodedRange = encodeURIComponent(`'${sheetName}'!${range}`);
+  const cleanSheet = (sheetName || '').replace(/['"]/g, '').split('!')[0].trim();
+  const cleanRange = (range || '').replace(/.*!/, '').trim();
+  const encodedRange = encodeURIComponent(`'${cleanSheet}'!${cleanRange}`);
   const url = `https://sheets.googleapis.com/v4/spreadsheets/${DEFAULT_CONFIG.spreadsheetId}/values/${encodedRange}?valueInputOption=${valueInputOption}`;
   
   const response = await fetch(url, {
@@ -110,7 +180,8 @@ async function callSheetUpdate(sheetName, range, values, valueInputOption = "USE
 
 async function callSheetAppend(sheetName, values, valueInputOption = "USER_ENTERED") {
   const token = await getAccessToken();
-  const encodedRange = encodeURIComponent(`'${sheetName}'!A1`);
+  const cleanSheet = (sheetName || '').replace(/['"]/g, '').split('!')[0].trim();
+  const encodedRange = encodeURIComponent(`'${cleanSheet}'!A1`);
   const url = `https://sheets.googleapis.com/v4/spreadsheets/${DEFAULT_CONFIG.spreadsheetId}/values/${encodedRange}:append?valueInputOption=${valueInputOption}&insertDataOption=INSERT_ROWS`;
   
   const response = await fetch(url, {
@@ -132,7 +203,9 @@ async function callSheetAppend(sheetName, values, valueInputOption = "USER_ENTER
 
 async function callSheetClear(sheetName, range) {
   const token = await getAccessToken();
-  const encodedRange = encodeURIComponent(`'${sheetName}'!${range}`);
+  const cleanSheet = (sheetName || '').replace(/['"]/g, '').split('!')[0].trim();
+  const cleanRange = (range || '').replace(/.*!/, '').trim();
+  const encodedRange = encodeURIComponent(`'${cleanSheet}'!${cleanRange}`);
   const url = `https://sheets.googleapis.com/v4/spreadsheets/${DEFAULT_CONFIG.spreadsheetId}/values/${encodedRange}:clear`;
   
   const response = await fetch(url, {
@@ -150,39 +223,111 @@ async function callSheetClear(sheetName, range) {
 
 // Serverless Handler (Vercel Node.js Function)
 export default async function handler(req, res) {
-  // CORS Headers
-  res.setHeader('Access-Control-Allow-Credentials', 'true');
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
-  res.setHeader(
-    'Access-Control-Allow-Headers',
-    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization'
-  );
+  // Security Headers
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Content-Security-Policy', "default-src 'none'; frame-ancestors 'none';");
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  res.setHeader('Strict-Transport-Security', 'max-age=63072000; includeSubDomains; preload');
+
+  // CORS Headers: Restrict to trusted domains only
+  const origin = req.headers?.origin;
+  const reqHost = (req.headers?.host || '').split(':')[0].toLowerCase();
+  let isAllowedOrigin = false;
+  if (origin) {
+    try {
+      const parsedOrigin = new URL(origin);
+      const host = parsedOrigin.hostname.toLowerCase();
+      if (
+        (reqHost && host === reqHost) ||
+        host === 'localhost' ||
+        host === '127.0.0.1' ||
+        host.endsWith('.vercel.app') ||
+        host.endsWith('.github.io')
+      ) {
+        isAllowedOrigin = true;
+      }
+    } catch (_) {
+      isAllowedOrigin = false;
+    }
+  }
+
+  if (isAllowedOrigin) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
+    res.setHeader(
+      'Access-Control-Allow-Headers',
+      'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization'
+    );
+  }
+
+  // Preflight and Origin Validation: Reject untrusted cross-origin requests immediately
+  if (origin && !isAllowedOrigin) {
+    if (req.method === 'OPTIONS') {
+      return res.status(403).end();
+    }
+    return res.status(403).json({ success: false, error: 'Origin không được phép truy cập (CORS Forbidden).' });
+  }
 
   if (req.method === 'OPTIONS') {
-    res.status(200).end();
-    return;
+    return res.status(200).end();
   }
 
   try {
-    const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
-    const action = req.query?.action || url.searchParams.get('action') || (req.body && req.body.action);
+    let url;
+    try {
+      url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+    } catch (_) {
+      return res.status(400).json({ success: false, error: 'Đường dẫn yêu cầu không hợp lệ (URI malformed).' });
+    }
+
+    let body = req.body;
+    if (Buffer.isBuffer(body)) {
+      try {
+        body = JSON.parse(body.toString('utf8'));
+      } catch (_) {
+        body = {};
+      }
+    } else if (typeof body === 'string') {
+      try {
+        body = JSON.parse(body);
+      } catch (_) {
+        body = {};
+      }
+    }
+    const action = req.query?.action || url.searchParams.get('action') || (body && body.action);
 
     // 1. SECURE LOGIN ACTION (Server-side Authentication)
     if (action === 'login') {
-      const { id, password } = req.body || {};
-      if (!id || !password) {
+      if (req.method !== 'POST') {
+        return res.status(405).json({ success: false, error: 'Chỉ chấp nhận phương thức POST cho đăng nhập.' });
+      }
+
+      const { id, password } = body || {};
+      const rawId = (typeof id === 'string' || typeof id === 'number') ? String(id).trim() : '';
+      const rawPass = (typeof password === 'string' || typeof password === 'number') ? String(password).trim() : '';
+
+      if (!rawId || !rawPass) {
         return res.status(400).json({ success: false, error: 'Vui lòng nhập đầy đủ ID và mật khẩu.' });
       }
 
-      const normId = (id || '').toString().trim().toLowerCase();
-      const normPass = (password || '').toString().trim();
+      if (rawId.length > 100 || rawPass.length > 200) {
+        return res.status(400).json({ success: false, error: 'Thông tin tài khoản hoặc mật khẩu vượt quá độ dài cho phép.' });
+      }
+
+      const normId = rawId.toLowerCase();
+      const normPass = rawPass;
 
       // Read raw DSNV privately on server
       const token = await getAccessToken();
       const encodedRange = encodeURIComponent(`'DSNV'!A1:H10000`);
       const authUrl = `https://sheets.googleapis.com/v4/spreadsheets/${DEFAULT_CONFIG.spreadsheetId}/values/${encodedRange}`;
       const authRes = await fetch(authUrl, { headers: { Authorization: `Bearer ${token}` } });
+      if (!authRes.ok) {
+        throw new Error(`Lỗi kết nối máy chủ xác thực Google Sheets: HTTP ${authRes.status}`);
+      }
       const authData = await authRes.json();
       const rows = authData.values || [];
 
@@ -201,7 +346,8 @@ export default async function handler(req, res) {
       const iType = headers.findIndex(h => h === 'truong');
 
       let matchedUser = null;
-      rows.slice(1).forEach((r, idx) => {
+      for (let idx = 0; idx < rows.slice(1).length; idx++) {
+        const r = rows[idx + 1];
         const uId = (iId !== -1 ? r[iId] || '' : r[0] || '').toString().trim();
         const uPass = (iPass !== -1 ? r[iPass] || '' : r[6] || '').toString().trim();
 
@@ -216,8 +362,9 @@ export default async function handler(req, res) {
             role: (iRole !== -1 ? r[iRole] || '' : r[5] || 'KHO').toString().trim().toUpperCase(),
             type: (iType !== -1 ? r[iType] || '' : r[7] || 'NHÂN VIÊN').toString().trim()
           };
+          break;
         }
-      });
+      }
 
       if (!matchedUser) {
         return res.status(401).json({ success: false, error: 'Tài khoản hoặc mật khẩu không chính xác!' });
@@ -231,8 +378,9 @@ export default async function handler(req, res) {
 
     // 2. FETCH SHEET VALUES
     if (action === 'fetch') {
-      const sheetName = req.query?.sheet || url.searchParams.get('sheet') || (req.body && req.body.sheet);
-      const range = req.query?.range || url.searchParams.get('range') || (req.body && req.body.range) || "A1:Z50000";
+      const rawSheet = req.query?.sheet || url.searchParams.get('sheet') || (body && body.sheet);
+      const sheetName = (rawSheet || '').toString().trim();
+      const range = req.query?.range || url.searchParams.get('range') || (body && body.range) || "A1:Z50000";
 
       if (!sheetName) {
         return res.status(400).json({ success: false, error: 'Thiếu tên sheet.' });
@@ -244,41 +392,80 @@ export default async function handler(req, res) {
 
     // 3. UPDATE SHEET RANGE
     if (action === 'update') {
-      const { sheetName, range, values, valueInputOption } = req.body || {};
-      if (!sheetName || !range || !values) {
+      if (req.method !== 'POST') {
+        return res.status(405).json({ success: false, error: 'Chỉ chấp nhận phương thức POST cho cập nhật.' });
+      }
+      const { sheetName, range, values, valueInputOption } = body || {};
+      const rawSheet = (sheetName || '').toString().trim();
+      const rawRange = (range || '').toString().trim();
+      if (!rawSheet || !rawRange || !values) {
         return res.status(400).json({ success: false, error: 'Thiếu thông số cập nhật.' });
       }
+      if (!Array.isArray(values)) {
+        return res.status(400).json({ success: false, error: 'Thông số values phải là mảng dữ liệu (Array).' });
+      }
 
-      const result = await callSheetUpdate(sheetName, range, values, valueInputOption);
+      const cleanSheet = rawSheet.replace(/['"]/g, '').split('!')[0].trim().toUpperCase();
+      if (cleanSheet === 'DSNV') {
+        const { startRowNum } = parseRangeInfo(rawRange);
+        if (startRowNum === 1) {
+          return res.status(403).json({ success: false, error: 'Không cho phép sửa đổi dòng tiêu đề (Header row) trên DSNV.' });
+        }
+      }
+
+      const result = await callSheetUpdate(rawSheet, rawRange, values, valueInputOption);
       return res.status(200).json({ success: true, result });
     }
 
     // 4. APPEND SHEET ROWS
     if (action === 'append') {
-      const { sheetName, values, valueInputOption } = req.body || {};
-      if (!sheetName || !values) {
+      if (req.method !== 'POST') {
+        return res.status(405).json({ success: false, error: 'Chỉ chấp nhận phương thức POST cho thêm dòng.' });
+      }
+      const { sheetName, values, valueInputOption } = body || {};
+      const rawSheet = (sheetName || '').toString().trim();
+      if (!rawSheet || !values) {
         return res.status(400).json({ success: false, error: 'Thiếu thông số thêm dòng.' });
       }
+      if (!Array.isArray(values)) {
+        return res.status(400).json({ success: false, error: 'Thông số values phải là mảng dữ liệu (Array).' });
+      }
 
-      const result = await callSheetAppend(sheetName, values, valueInputOption);
+      const result = await callSheetAppend(rawSheet, values, valueInputOption);
       return res.status(200).json({ success: true, result });
     }
 
     // 5. BATCH CLEAR AND WRITE (e.g. CAI_DAT)
     if (action === 'batchClearAndWrite') {
-      const { sheetName, range = "A1:H1000", values, valueInputOption } = req.body || {};
-      if (!sheetName || !values) {
+      if (req.method !== 'POST') {
+        return res.status(405).json({ success: false, error: 'Chỉ chấp nhận phương thức POST cho ghi đè batch.' });
+      }
+      const { sheetName, range = "A1:H1000", values, valueInputOption } = body || {};
+      const rawSheet = (sheetName || '').toString().trim();
+      if (!rawSheet || !values) {
         return res.status(400).json({ success: false, error: 'Thiếu thông số ghi sheet.' });
       }
+      if (!Array.isArray(values)) {
+        return res.status(400).json({ success: false, error: 'Thông số values phải là mảng dữ liệu (Array).' });
+      }
 
-      await callSheetClear(sheetName, range);
-      const result = await callSheetUpdate(sheetName, range, values, valueInputOption);
+      const cleanSheet = rawSheet.replace(/['"]/g, '').split('!')[0].trim().toUpperCase();
+      if (cleanSheet === 'DSNV') {
+        return res.status(403).json({ success: false, error: 'Không cho phép batch clear trên DSNV.' });
+      }
+
+      await callSheetClear(rawSheet, range);
+      const result = await callSheetUpdate(rawSheet, range, values, valueInputOption);
       return res.status(200).json({ success: true, result });
     }
 
     return res.status(400).json({ success: false, error: `Hành động không hợp lệ: ${action}` });
   } catch (err) {
     console.error("API /api/sheets error:", err);
-    return res.status(500).json({ success: false, error: err.message || 'Lỗi xử lý máy chủ' });
+    let msg = err.message || 'Lỗi xử lý máy chủ';
+    if (msg.includes('type.googleapis.com') || msg.includes('fieldViolations') || msg.includes('oauth2.googleapis.com')) {
+      msg = 'Lỗi kết nối máy chủ Google Sheets API.';
+    }
+    return res.status(500).json({ success: false, error: msg });
   }
 }

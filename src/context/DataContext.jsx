@@ -154,16 +154,11 @@ export function DataProvider({ children }) {
     }
   }, [applyParsedSettings, applyParsedPermissions]);
 
-  // Fetch Initial Essential Data (Home/Dashboard data only; other modules lazy-load on navigation)
+  // Fetch Essential System Configuration (Home only needs system settings/permissions; business sheets lazy-load on navigation)
   const fetchAllData = useCallback(async () => {
     setSyncStatus('SYNCING');
     try {
-      await Promise.allSettled([
-        fetchModule('caidat'),
-        fetchModule('nhap'),
-        fetchModule('xuat'),
-        fetchModule('sanpham')
-      ]);
+      await fetchModule('caidat');
       setSyncStatus('SUCCESS');
       setLastSyncedTime(new Date());
     } catch (err) {
