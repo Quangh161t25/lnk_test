@@ -68,9 +68,11 @@ export function SanphamModule({ onNavigateWithFilter }) {
   // Lazy load product & transaction data on demand
   React.useEffect(() => {
     if (!productData || productData.length <= 1) fetchModule('sanpham');
+    if (!warehouseProductData || warehouseProductData.length <= 1) fetchModule('sanphamkho');
     if (!nhapData || nhapData.length <= 1) fetchModule('nhap');
     if (!xuatData || xuatData.length <= 1) fetchModule('xuat');
-  }, [productData, nhapData, xuatData, fetchModule]);
+    if (!transferData || transferData.length <= 1) fetchModule('chuyenkho');
+  }, [productData, warehouseProductData, nhapData, xuatData, transferData, fetchModule]);
 
   const aggregates = useMemo(() => {
     return calculateProductAggregates(nhapData, xuatData, transferData, warehouseProductData);

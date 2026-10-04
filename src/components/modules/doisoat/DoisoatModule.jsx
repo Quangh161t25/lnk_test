@@ -35,7 +35,7 @@ const DEFAULT_DOISOAT_COLUMNS = [
 ];
 
 export function DoisoatModule() {
-  const { doisoatData, nhapData, xuatData, transferData, warehouseProductData, appendRow, updateRow, fetchModule } = useData();
+  const { doisoatData, nhapData, xuatData, transferData, warehouseProductData, appendRow, updateRow, fetchModule, loadingModules } = useData();
   const { hasActionPermission } = useAuth();
 
   // Column Manager Hook
@@ -60,16 +60,43 @@ export function DoisoatModule() {
   const [editRow, setEditRow] = useState(null);
   const [isExcelModalOpen, setIsExcelModalOpen] = useState(false);
 
-  // Lazy load doisoat data on demand
+  // Lazy load doisoat and inventory transactions to compute live ERP stock
   React.useEffect(() => {
-    if (!doisoatData || doisoatData.length <= 1) {
-      fetchModule('doisoat');
-    }
-  }, [doisoatData, fetchModule]);
+    if (!doisoatData || doisoatData.length <= 1) fetchModule('doisoat');
+    if (!warehouseProductData || warehouseProductData.length <= 1) fetchModule('sanphamkho');
+    if (!nhapData || nhapData.length <= 1) fetchModule('nhap');
+    if (!xuatData || xuatData.length <= 1) fetchModule('xuat');
+    if (!transferData || transferData.length <= 1) fetchModule('chuyenkho');
+  }, [doisoatData, warehouseProductData, nhapData, xuatData, transferData, fetchModule]);
+
+  const isLoading = Boolean(
+    loadingModules?.doisoat || 
+    loadingModules?.sanphamkho || 
+    loadingModules?.nhap || 
+    loadingModules?.xuat ||
+    loadingModules?.chuyenkho
+  );
 
   const aggregates = useMemo(() => {
     return calculateProductAggregates(nhapData, xuatData, transferData, warehouseProductData);
   }, [nhapData, xuatData, transferData, warehouseProductData]);
+
+  // Real counts for difference filters
+  const statusCounts = useMemo(() => {
+    let all = 0, match = 0, surplus = 0, deficit = 0;
+    (doisoatData || []).slice(1).forEach(row => {
+      const id = (row[0] || '').toString().trim().toLowerCase();
+      if (!id) return;
+      all++;
+      const tonHeThong = aggregates.get(id)?.tonCuoi || 0;
+      const tonMisa = cleanNumber(row[2]);
+      const diff = tonHeThong - tonMisa;
+      if (diff === 0) match++;
+      else if (diff > 0) surplus++;
+      else deficit++;
+    });
+    return { all, match, surplus, deficit };
+  }, [doisoatData, aggregates]);
 
   // Filtered rows
   const filteredRows = useMemo(() => {
@@ -233,7 +260,7 @@ export function DoisoatModule() {
               diffFilter === 'ALL' ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
             }`}
           >
-            Tất cả
+            Tất cả ({statusCounts.all})
           </button>
 
           <button
@@ -245,7 +272,7 @@ export function DoisoatModule() {
               diffFilter === 'MATCH' ? 'bg-emerald-600 text-white' : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
             }`}
           >
-            Khớp số liệu (0)
+            Khớp số liệu ({statusCounts.match})
           </button>
 
           <button
@@ -257,7 +284,7 @@ export function DoisoatModule() {
               diffFilter === 'SURPLUS' ? 'bg-blue-600 text-white' : 'bg-blue-50 text-blue-700 hover:bg-blue-100'
             }`}
           >
-            Thừa kho (ERP &gt; MISA)
+            Thừa kho (ERP &gt; MISA) ({statusCounts.surplus})
           </button>
 
           <button
@@ -269,8 +296,15 @@ export function DoisoatModule() {
               diffFilter === 'DEFICIT' ? 'bg-rose-600 text-white' : 'bg-rose-50 text-rose-700 hover:bg-rose-100'
             }`}
           >
-            Thiếu kho (ERP &lt; MISA)
+            Thiếu kho (ERP &lt; MISA) ({statusCounts.deficit})
           </button>
+
+          {isLoading && (
+            <span className="ml-auto flex items-center gap-1.5 text-xs text-rose-600 font-semibold bg-rose-50 border border-rose-200 px-2.5 py-0.5 rounded-full animate-pulse">
+              <Scale className="w-3.5 h-3.5 animate-spin" />
+              Đang tính toán tồn kho ERP...
+            </span>
+          )}
         </div>
       </div>
 
