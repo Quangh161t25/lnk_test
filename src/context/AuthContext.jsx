@@ -22,9 +22,25 @@ function mergePermissionsWithDefaults(cached) {
       let actions = Array.isArray(cachedActs) ? [...cachedActs] : (DEFAULT_PERMISSIONS.roles[upperRole]?.actions || []);
 
       if (upperRole === 'ADMIN') {
-        if (!modules.includes('caidat')) modules.push('caidat');
-        if (!modules.includes('home')) modules.push('home');
-        if (!actions.includes('caidat.manage')) actions.push('caidat.manage');
+        MODULE_DEFINITIONS.forEach(m => {
+          if (!modules.includes(m.key)) modules.push(m.key);
+        });
+        DEFAULT_PERMISSIONS.roles.ADMIN.actions.forEach(a => {
+          if (!actions.includes(a)) actions.push(a);
+        });
+      } else {
+        const defaultMods = DEFAULT_PERMISSIONS.roles[upperRole]?.modules || [];
+        defaultMods.forEach(m => {
+          if ((m === 'cngiasp' || m === 'lendon') && !modules.includes(m)) {
+            modules.push(m);
+          }
+        });
+        const defaultActs = DEFAULT_PERMISSIONS.roles[upperRole]?.actions || [];
+        defaultActs.forEach(a => {
+          if ((a === 'cngiasp.manage' || a === 'lendon.manage') && !actions.includes(a)) {
+            actions.push(a);
+          }
+        });
       }
 
       mergedRoles[upperRole] = {
@@ -141,7 +157,7 @@ export function AuthProvider({ children }) {
 
   const resolveRoleKey = useCallback((roleStr) => {
     const r = (roleStr || '').toString().trim().toUpperCase();
-    if (r === 'ADMIN') return 'ADMIN';
+    if (r === 'ADMIN' || r === 'TỔNG GIÁM ĐỐC' || r === 'TONG GIAM DOC' || r === 'GIÁM ĐỐC' || r === 'GIAM DOC' || r === 'GD' || r === 'TGD') return 'ADMIN';
     if (r === 'KT' || r === 'KẾ TOÁN' || r === 'KE TOAN') return 'KT';
     if (r === 'KHO' || r === 'THỦ KHO' || r === 'THU KHO') return 'KHO';
     if (r === 'NPP' || r === 'NHÀ PHÂN PHỐI' || r === 'NHA PHAN PHOI') return 'NPP';
@@ -153,12 +169,11 @@ export function AuthProvider({ children }) {
   const getAllowedModules = useCallback(() => {
     if (!currentUser) return [];
     const roleKey = resolveRoleKey(currentUser.role);
+    if (roleKey === 'ADMIN') {
+      return MODULE_DEFINITIONS.map(m => m.key);
+    }
     const roleConfig = permissions?.roles?.[roleKey] || permissions?.roles?.[currentUser.role] || DEFAULT_PERMISSIONS.roles[roleKey] || {};
     let modules = Array.isArray(roleConfig.modules) ? roleConfig.modules : (DEFAULT_PERMISSIONS.roles[roleKey]?.modules || []);
-    if (roleKey === 'ADMIN') {
-      if (!modules.includes('caidat')) modules = [...modules, 'caidat'];
-      if (!modules.includes('home')) modules = [...modules, 'home'];
-    }
     return modules;
   }, [currentUser, permissions, resolveRoleKey]);
 
@@ -166,7 +181,7 @@ export function AuthProvider({ children }) {
     if (!currentUser) return false;
     if (moduleKey === 'home') return true;
     const roleKey = resolveRoleKey(currentUser.role);
-    if (roleKey === 'ADMIN' && moduleKey === 'caidat') return true;
+    if (roleKey === 'ADMIN') return true;
     const allowed = getAllowedModules();
     return allowed.includes(moduleKey);
   }, [currentUser, getAllowedModules, resolveRoleKey]);
@@ -174,7 +189,7 @@ export function AuthProvider({ children }) {
   const hasActionPermission = useCallback((actionKey) => {
     if (!currentUser) return false;
     const roleKey = resolveRoleKey(currentUser.role);
-    if (roleKey === 'ADMIN' && actionKey === 'caidat.manage') return true;
+    if (roleKey === 'ADMIN') return true;
     const roleConfig = permissions?.roles?.[roleKey] || permissions?.roles?.[currentUser.role] || DEFAULT_PERMISSIONS.roles[roleKey] || {};
     const actions = Array.isArray(roleConfig.actions) ? roleConfig.actions : (DEFAULT_PERMISSIONS.roles[roleKey]?.actions || []);
     return actions.includes(actionKey);

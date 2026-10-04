@@ -1,4 +1,4 @@
-import { CONFIG } from '../config/constants';
+import { CONFIG, MODULE_DEFINITIONS } from '../config/constants';
 import { fetchSheetValues, batchClearAndWriteSheet, updateSheetRange } from './googleSheetsService';
 
 /**
@@ -58,6 +58,13 @@ export function parseCaiDatRows(rows) {
       if (!roles[roleKey]) roles[roleKey] = { modules: [], actions: [] };
       const mods = Array.isArray(parsedVal) ? parsedVal : (value ? value.split(',').map(s => s.trim()) : []);
       roles[roleKey].modules = Array.from(new Set([...roles[roleKey].modules, ...mods]));
+      if (roleKey === 'ADMIN') {
+        MODULE_DEFINITIONS.forEach(m => {
+          if (!roles[roleKey].modules.includes(m.key)) {
+            roles[roleKey].modules.push(m.key);
+          }
+        });
+      }
     }
     else if (id.startsWith('ROLE_') && id.endsWith('_ACTIONS')) {
       const rawRoleKey = id.substring(5, id.length - 8);
@@ -143,9 +150,19 @@ export function buildCaiDatRows({ settings, permissions, currentUser, rawAdditio
     // Look up directly with uppercase first, fallback to case-insensitive
     const matchKey = Object.keys(rawRoles).find(k => k.toUpperCase() === r);
     const source = matchKey ? rawRoles[matchKey] : null;
+    let mods = Array.isArray(source?.modules) ? [...source.modules] : [];
+    let acts = Array.isArray(source?.actions) ? [...source.actions] : [];
+    if (r === 'ADMIN') {
+      MODULE_DEFINITIONS.forEach(m => {
+        if (!mods.includes(m.key)) mods.push(m.key);
+      });
+      ['nx.manualAdd', 'nx.upload', 'nx.confirmWarehouse', 'nx.delete', 'sanpham.manage', 'cngiasp.manage', 'lendon.manage', 'doisoat.manage', 'caidat.manage'].forEach(a => {
+        if (!acts.includes(a)) acts.push(a);
+      });
+    }
     normalizedRoles[r] = {
-      modules: Array.isArray(source?.modules) ? [...source.modules] : [],
-      actions: Array.isArray(source?.actions) ? [...source.actions] : []
+      modules: mods,
+      actions: acts
     };
   });
 
