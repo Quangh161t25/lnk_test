@@ -22,6 +22,7 @@ export function DataProvider({ children }) {
   const [warehouseProductData, setWarehouseProductData] = useState(() => getLocalItem(STORAGE_KEYS.WAREHOUSE_PRODUCT_CACHE, []));
   const [tonNppData, setTonNppData] = useState(() => getLocalItem(STORAGE_KEYS.TON_NPP_CACHE, []));
   const [doisoatData, setDoisoatData] = useState(() => getLocalItem(STORAGE_KEYS.RECONCILIATION_CACHE, []));
+  const [cngiaspData, setCngiaspData] = useState(() => getLocalItem(STORAGE_KEYS.CNGIASP_CACHE, []));
   const [caidatData, setCaidatData] = useState(() => getLocalItem(STORAGE_KEYS.CAIDAT_CACHE, []));
   const [aggregatesData, setAggregatesData] = useState(() => getLocalItem('lnk_aggregates_cache', {}));
   const [nppProductIdsData, setNppProductIdsData] = useState(() => getLocalItem('lnk_npp_products_cache', []));
@@ -65,6 +66,10 @@ export function DataProvider({ children }) {
         setDoisoatData(data);
         setLocalItem(STORAGE_KEYS.RECONCILIATION_CACHE, data);
         break;
+      case 'cngiasp':
+        setCngiaspData(data);
+        setLocalItem(STORAGE_KEYS.CNGIASP_CACHE, data);
+        break;
       case 'caidat':
         setCaidatData(data);
         setLocalItem(STORAGE_KEYS.CAIDAT_CACHE, data);
@@ -84,6 +89,7 @@ export function DataProvider({ children }) {
       case 'sanphamkho': return warehouseProductData;
       case 'ton_npp': return tonNppData;
       case 'doisoat': return doisoatData;
+      case 'cngiasp': return cngiaspData;
       case 'caidat': return caidatData;
       default: return [];
     }
@@ -349,6 +355,7 @@ export function DataProvider({ children }) {
         warehouseProductData,
         tonNppData,
         doisoatData,
+        cngiaspData,
         caidatData,
         aggregatesData,
         nppProductIdsData,

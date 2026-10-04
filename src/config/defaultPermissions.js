@@ -9,6 +9,7 @@ export const DEFAULT_PERMISSIONS = {
     chuyenkho: "Điều chuyển kho",
     sanpham: "Danh sách sản phẩm",
     sanphamkho: "Danh sách sản phẩm kho",
+    cngiasp: "CN Giá SP",
     ton_npp: "Tồn NPP",
     doisoat: "Đối soát",
     nhanvien: "Danh sách nhân viên",
@@ -19,20 +20,20 @@ export const DEFAULT_PERMISSIONS = {
   roles: {
     ADMIN: {
       modules: [
-        "home", "tongquan", "nhap", "dukien", "xuat", "chuyenkho", "sanpham", "sanphamkho",
+        "home", "tongquan", "nhap", "dukien", "xuat", "chuyenkho", "sanpham", "sanphamkho", "cngiasp",
         "ton_npp", "doisoat", "nhanvien", "khachhang", "dubaonhap", "caidat"
       ],
       actions: [
         "nx.manualAdd", "nx.upload", "nx.confirmWarehouse", "nx.delete",
-        "sanpham.manage", "doisoat.manage", "caidat.manage"
+        "sanpham.manage", "cngiasp.manage", "doisoat.manage", "caidat.manage"
       ]
     },
     KT: {
       modules: [
-        "home", "tongquan", "nhap", "dukien", "xuat", "chuyenkho", "sanpham", "sanphamkho", "ton_npp", "doisoat"
+        "home", "tongquan", "nhap", "dukien", "xuat", "chuyenkho", "sanpham", "sanphamkho", "cngiasp", "ton_npp", "doisoat"
       ],
       actions: [
-        "nx.upload", "doisoat.manage"
+        "nx.upload", "cngiasp.manage", "doisoat.manage"
       ]
     },
     KHO: {

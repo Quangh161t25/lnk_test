@@ -49,6 +49,12 @@ export const SIMPLE_SHEET_MODULES = {
     cacheKey: 'erp_reconciliation_cache',
     columns: ['id', 'ten_sp', 'ton_misa']
   },
+  cngiasp: {
+    sheetName: () => CONFIG.cngiaspSheetName || 'CN_GIA_SP',
+    range: 'A1:K60000',
+    cacheKey: 'erp_cngiasp_cache',
+    columns: ['id', 'ngay_cap_nhat', 'ma_sp', 'ten_sp', 'gia_nhap', 'gia_ban', 'gia_cu', 'chenh_lech', 'nguoi_cap_nhat', 'ghi_chu', 'trang_thai']
+  },
   caidat: {
     sheetName: () => CONFIG.caiDatSheetName || 'CAI_DAT',
     range: 'A1:H1000',

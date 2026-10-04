@@ -33,7 +33,12 @@ export function downloadModuleTemplate(moduleName) {
   let sampleRows = [];
   let fileName = `template_${moduleName}.xlsx`;
 
-  if (SIMPLE_SHEET_MODULES[moduleName]) {
+  if (moduleName === 'cngiasp') {
+    headers = ['id', 'ngay_cap_nhat', 'ma_sp', 'ten_sp', 'gia_nhap', 'gia_ban', 'gia_cu', 'chenh_lech', 'nguoi_cap_nhat', 'ghi_chu', 'trang_thai'];
+    sampleRows = [
+      ['GIA-001', '05/10/2026', 'LM-LK-6201A', 'Chảo cạn Titanium Lock&King 28cm', 120000, 185000, 175000, 10000, 'Kế toán', 'Điều chỉnh giá bán tháng 10', 'Áp dụng']
+    ];
+  } else if (SIMPLE_SHEET_MODULES[moduleName]) {
     headers = [...SIMPLE_SHEET_MODULES[moduleName].columns];
   } else if (moduleName === 'nhanvien') {
     headers = ['id', 'ho_ten', 'hinh_anh', 'gioi_tinh', 'ngay_sinh', 'quyen', 'mk', 'truong'];

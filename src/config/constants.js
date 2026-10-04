@@ -13,6 +13,7 @@ export const CONFIG = {
   giuHangSheetName: "GIU_HANG",
   kiemKhoSheetName: "KIEM_KHO",
   caiDatSheetName: "CAI_DAT",
+  cngiaspSheetName: "CN_GIA_SP",
   permissionsFile: "permissions.json"
 };
 
@@ -62,6 +63,7 @@ export const MODULE_DEFINITIONS = [
   { key: 'chuyenkho', name: 'Điều chuyển kho', desc: 'Điều chuyển hàng giữa các kho', icon: 'ArrowLeftRight', color: 'cyan' },
   { key: 'sanpham', name: 'Danh sách sản phẩm', desc: 'Danh mục sản phẩm & tồn kho tổng', icon: 'Package', color: 'emerald' },
   { key: 'sanphamkho', name: 'Sản phẩm kho', desc: 'Tồn kho chi tiết theo từng kho', icon: 'Warehouse', color: 'indigo' },
+  { key: 'cngiasp', name: 'CN Giá SP', desc: 'Cập nhật & quản lý bảng giá sản phẩm', icon: 'BadgePercent', color: 'emerald' },
   { key: 'ton_npp', name: 'Tồn NPP', desc: 'Báo cáo tồn Nhà phân phối', icon: 'Building2', color: 'teal' },
   { key: 'doisoat', name: 'Đối soát', desc: 'Đối chiếu tồn hệ thống với MISA', icon: 'Scale', color: 'rose' },
   { key: 'nhanvien', name: 'Danh sách nhân viên', desc: 'Danh bạ nhân viên từ DSNV', icon: 'Users', color: 'sky' },
@@ -76,6 +78,7 @@ export const AVAILABLE_ACTIONS = [
   { key: 'nx.confirmWarehouse', name: 'Xác nhận trạng thái kho', desc: 'Cập nhật trạng thái: Đã nhặt hàng, Đã lên xe, Hoàn thành' },
   { key: 'nx.delete', name: 'Xóa đơn hàng / Bản ghi Tồn NPP', desc: 'Cho phép xóa đơn Nhập, Xuất, Tồn NPP và các bản ghi chi tiết' },
   { key: 'sanpham.manage', name: 'Quản lý Sản phẩm', desc: 'Thêm mới, sửa thông tin & giá bán sản phẩm' },
+  { key: 'cngiasp.manage', name: 'Quản lý bảng giá SP', desc: 'Thêm mới, sửa, xóa và tải lên file giá sản phẩm' },
   { key: 'doisoat.manage', name: 'Quản lý Đối soát', desc: 'Thao tác tải lên và đối chiếu chênh lệch MISA' },
   { key: 'caidat.manage', name: 'Quản trị Phân quyền', desc: 'Thiết kế vai trò và lưu cấu hình phân quyền' }
 ];

@@ -18,6 +18,7 @@ import {
   TrendingUp,
   Settings,
   BarChart3,
+  BadgePercent,
   ChevronLeft,
   ChevronRight
 } from 'lucide-react';
@@ -31,6 +32,7 @@ const ICON_MAP = {
   ArrowLeftRight,
   Package,
   Warehouse,
+  BadgePercent,
   Building2,
   Scale,
   Users,
