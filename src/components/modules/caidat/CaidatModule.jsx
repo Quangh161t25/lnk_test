@@ -45,6 +45,11 @@ export function CaidatModule() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [message, setMessage] = useState({ text: '', type: 'info' });
 
+  // Ensure fresh CAI_DAT config on mount
+  useEffect(() => {
+    fetchModule('caidat');
+  }, [fetchModule]);
+
   // Lazy load users data for Caidat user restrictions
   useEffect(() => {
     if ((!usersData || usersData.length === 0) && currentUser?.role === 'ADMIN') {
@@ -92,40 +97,39 @@ export function CaidatModule() {
   const [sheetGroupFilter, setSheetGroupFilter] = useState('ALL');
   const [editingRowModal, setEditingRowModal] = useState(null); // { id, ten_thiet_lap, gia_tri, nhom, kieu_du_lieu, mo_ta, isNew }
 
-  const initializedRef = useRef(false);
-
-  // Sync internal form when appSettings / permissions update for the first time
+  // Sync internal form when appSettings updates
   useEffect(() => {
-    if (!initializedRef.current) {
-      initializedRef.current = true;
-      if (appSettings) {
-        if (appSettings.appName) setSysAppName(appSettings.appName);
-        if (appSettings.appVersion) setSysAppVersion(appSettings.appVersion);
-        if (appSettings.pageSize) setSysPageSize(appSettings.pageSize);
-        if (appSettings.lowStockThreshold) setSysLowStock(appSettings.lowStockThreshold);
-        if (appSettings.defaultWarehouse) setSysDefaultWarehouse(appSettings.defaultWarehouse);
-        if (appSettings.allowNegativeStock) setSysAllowNegativeStock(appSettings.allowNegativeStock);
-        if (appSettings.autoRefreshIntervalSec) setSysAutoRefresh(appSettings.autoRefreshIntervalSec);
-        if (Array.isArray(appSettings.warehouses) && appSettings.warehouses.length > 0) {
-          setWarehousesList(appSettings.warehouses);
-        }
-      }
-      if (permissions) {
-        const raw = permissions.roles || {};
-        const norm = {};
-        STANDARD_ROLES.forEach(r => {
-          norm[r] = {
-            modules: raw[r]?.modules || raw[r.toLowerCase()]?.modules || [],
-            actions: raw[r]?.actions || raw[r.toLowerCase()]?.actions || []
-          };
-        });
-        setWorkingRoles(norm);
-        if (permissions.userRestrictions) setWorkingRestrictions(JSON.parse(JSON.stringify(permissions.userRestrictions)));
-        if (permissions.userWarehouses) setWorkingUserWarehouses(JSON.parse(JSON.stringify(permissions.userWarehouses)));
-        if (permissions.dataScopes) setWorkingDataScopes(JSON.parse(JSON.stringify(permissions.dataScopes)));
+    if (appSettings) {
+      if (appSettings.appName) setSysAppName(appSettings.appName);
+      if (appSettings.appVersion) setSysAppVersion(appSettings.appVersion);
+      if (appSettings.pageSize) setSysPageSize(appSettings.pageSize);
+      if (appSettings.lowStockThreshold) setSysLowStock(appSettings.lowStockThreshold);
+      if (appSettings.defaultWarehouse) setSysDefaultWarehouse(appSettings.defaultWarehouse);
+      if (appSettings.allowNegativeStock) setSysAllowNegativeStock(appSettings.allowNegativeStock);
+      if (appSettings.autoRefreshIntervalSec) setSysAutoRefresh(appSettings.autoRefreshIntervalSec);
+      if (Array.isArray(appSettings.warehouses) && appSettings.warehouses.length > 0) {
+        setWarehousesList(appSettings.warehouses);
       }
     }
-  }, [appSettings, permissions]);
+  }, [appSettings]);
+
+  // Sync internal permissions when permissions updates from sheet
+  useEffect(() => {
+    if (permissions) {
+      const raw = permissions.roles || {};
+      const norm = {};
+      STANDARD_ROLES.forEach(r => {
+        norm[r] = {
+          modules: raw[r]?.modules || raw[r.toLowerCase()]?.modules || [],
+          actions: raw[r]?.actions || raw[r.toLowerCase()]?.actions || []
+        };
+      });
+      setWorkingRoles(norm);
+      if (permissions.userRestrictions) setWorkingRestrictions(JSON.parse(JSON.stringify(permissions.userRestrictions)));
+      if (permissions.userWarehouses) setWorkingUserWarehouses(JSON.parse(JSON.stringify(permissions.userWarehouses)));
+      if (permissions.dataScopes) setWorkingDataScopes(JSON.parse(JSON.stringify(permissions.dataScopes)));
+    }
+  }, [permissions]);
 
   const showToast = (text, type = 'success') => {
     setMessage({ text, type });
@@ -136,7 +140,21 @@ export function CaidatModule() {
   const handleSaveAndSyncToSheet = async () => {
     setIsSaving(true);
     try {
-      // 1. Update local context states
+      // 1. Sanitize roles ensuring ADMIN retains caidat, home, and caidat.manage
+      const sanitizedRoles = { ...workingRoles };
+      if (!sanitizedRoles.ADMIN) {
+        sanitizedRoles.ADMIN = { modules: [], actions: [] };
+      }
+      const adminMods = Array.isArray(sanitizedRoles.ADMIN.modules) ? [...sanitizedRoles.ADMIN.modules] : [];
+      if (!adminMods.includes('caidat')) adminMods.push('caidat');
+      if (!adminMods.includes('home')) adminMods.push('home');
+      sanitizedRoles.ADMIN.modules = adminMods;
+
+      const adminActs = Array.isArray(sanitizedRoles.ADMIN.actions) ? [...sanitizedRoles.ADMIN.actions] : [];
+      if (!adminActs.includes('caidat.manage')) adminActs.push('caidat.manage');
+      sanitizedRoles.ADMIN.actions = adminActs;
+
+      // Update local context states
       const updatedSettings = {
         ...appSettings,
         appName: sysAppName,
@@ -152,12 +170,13 @@ export function CaidatModule() {
 
       const updatedPermissions = {
         ...permissions,
-        roles: workingRoles,
+        roles: sanitizedRoles,
         userRestrictions: workingRestrictions,
         userWarehouses: workingUserWarehouses,
         dataScopes: workingDataScopes
       };
       setPermissions(updatedPermissions);
+      setWorkingRoles(sanitizedRoles);
 
       // 2. Build rows for CAI_DAT sheet
       const rowsToSave = buildCaiDatRows({
@@ -251,28 +270,34 @@ export function CaidatModule() {
 
   const handleToggleModuleForRole = (roleKey, moduleKey) => {
     const upperRole = roleKey.toUpperCase();
-    const nextRoles = { ...workingRoles };
-    if (!nextRoles[upperRole]) nextRoles[upperRole] = { modules: [], actions: [] };
-    const currentModules = nextRoles[upperRole].modules || [];
-    if (currentModules.includes(moduleKey)) {
-      nextRoles[upperRole].modules = currentModules.filter(m => m !== moduleKey);
-    } else {
-      nextRoles[upperRole].modules = [...currentModules, moduleKey];
-    }
-    setWorkingRoles(nextRoles);
+    setWorkingRoles(prev => {
+      const nextRoles = { ...prev };
+      const currentRoleObj = nextRoles[upperRole] ? { ...nextRoles[upperRole] } : { modules: [], actions: [] };
+      const currentModules = Array.isArray(currentRoleObj.modules) ? [...currentRoleObj.modules] : [];
+      if (currentModules.includes(moduleKey)) {
+        currentRoleObj.modules = currentModules.filter(m => m !== moduleKey);
+      } else {
+        currentRoleObj.modules = [...currentModules, moduleKey];
+      }
+      nextRoles[upperRole] = currentRoleObj;
+      return nextRoles;
+    });
   };
 
   const handleToggleActionForRole = (roleKey, actionKey) => {
     const upperRole = roleKey.toUpperCase();
-    const nextRoles = { ...workingRoles };
-    if (!nextRoles[upperRole]) nextRoles[upperRole] = { modules: [], actions: [] };
-    const currentActions = nextRoles[upperRole].actions || [];
-    if (currentActions.includes(actionKey)) {
-      nextRoles[upperRole].actions = currentActions.filter(a => a !== actionKey);
-    } else {
-      nextRoles[upperRole].actions = [...currentActions, actionKey];
-    }
-    setWorkingRoles(nextRoles);
+    setWorkingRoles(prev => {
+      const nextRoles = { ...prev };
+      const currentRoleObj = nextRoles[upperRole] ? { ...nextRoles[upperRole] } : { modules: [], actions: [] };
+      const currentActions = Array.isArray(currentRoleObj.actions) ? [...currentRoleObj.actions] : [];
+      if (currentActions.includes(actionKey)) {
+        currentRoleObj.actions = currentActions.filter(a => a !== actionKey);
+      } else {
+        currentRoleObj.actions = [...currentActions, actionKey];
+      }
+      nextRoles[upperRole] = currentRoleObj;
+      return nextRoles;
+    });
   };
 
   // User warehouse assignment toggle
@@ -815,34 +840,41 @@ export function CaidatModule() {
               <h4 className="text-xs font-bold text-slate-700 uppercase">
                 Quyền truy cập Module màn hình ({workingRoles[selectedRole]?.modules?.length || 0}/{MODULE_DEFINITIONS.length})
               </h4>
-              {selectedRole === 'ADMIN' && (
+              {selectedRole === 'ADMIN' ? (
                 <span className="text-[11px] font-bold text-purple-600 bg-purple-50 px-2.5 py-0.5 rounded-full">
-                  Vai trò ADMIN có toàn quyền xem tất cả module
+                  Vai trò ADMIN (Cố định module Cài đặt & Trang chủ để đảm bảo quyền quản trị)
+                </span>
+              ) : (
+                <span className="text-[11px] font-bold text-slate-500 bg-slate-100 px-2.5 py-0.5 rounded-full">
+                  Tùy chỉnh phân quyền cho vai trò {selectedRole}
                 </span>
               )}
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
               {MODULE_DEFINITIONS.map(m => {
-                const isAllowed = selectedRole === 'ADMIN' || (workingRoles[selectedRole]?.modules || []).includes(m.key);
+                const isMandatoryAdmin = selectedRole === 'ADMIN' && (m.key === 'caidat' || m.key === 'home');
+                const isAllowed = isMandatoryAdmin || (workingRoles[selectedRole]?.modules || []).includes(m.key);
 
                 return (
                   <label
                     key={m.key}
-                    className={`p-3.5 rounded-2xl border flex items-center justify-between cursor-pointer transition select-none ${
+                    className={`p-3.5 rounded-2xl border flex items-center justify-between transition select-none ${
                       isAllowed ? 'bg-purple-50/80 border-purple-200 text-purple-950 shadow-2xs' : 'bg-slate-50/60 border-slate-200 text-slate-500'
-                    }`}
+                    } ${isMandatoryAdmin ? 'cursor-not-allowed opacity-90' : 'cursor-pointer'}`}
                   >
                     <div className="min-w-0 pr-2">
                       <p className="font-bold text-xs truncate">{m.name}</p>
-                      <p className="text-[10px] text-slate-400 truncate">{m.desc}</p>
+                      <p className="text-[10px] text-slate-400 truncate">
+                        {isMandatoryAdmin ? 'Module bắt buộc cho Quản trị viên' : m.desc}
+                      </p>
                     </div>
                     <input
                       type="checkbox"
                       checked={isAllowed}
-                      disabled={selectedRole === 'ADMIN'}
-                      onChange={() => handleToggleModuleForRole(selectedRole, m.key)}
-                      className="w-4 h-4 rounded text-purple-600 focus:ring-purple-500 shrink-0 cursor-pointer"
+                      disabled={isMandatoryAdmin}
+                      onChange={() => !isMandatoryAdmin && handleToggleModuleForRole(selectedRole, m.key)}
+                      className="w-4 h-4 rounded text-purple-600 focus:ring-purple-500 shrink-0 cursor-pointer disabled:cursor-not-allowed"
                     />
                   </label>
                 );
@@ -855,25 +887,28 @@ export function CaidatModule() {
             <h4 className="text-xs font-bold text-slate-700 uppercase">Quyền thao tác nghiệp vụ đặc quyền</h4>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {AVAILABLE_ACTIONS.map(act => {
-                const isAllowed = selectedRole === 'ADMIN' || (workingRoles[selectedRole]?.actions || []).includes(act.key);
+                const isMandatoryAdmin = selectedRole === 'ADMIN' && act.key === 'caidat.manage';
+                const isAllowed = isMandatoryAdmin || (workingRoles[selectedRole]?.actions || []).includes(act.key);
 
                 return (
                   <label
                     key={act.key}
-                    className={`p-3.5 rounded-2xl border flex items-center justify-between cursor-pointer transition select-none ${
+                    className={`p-3.5 rounded-2xl border flex items-center justify-between transition select-none ${
                       isAllowed ? 'bg-blue-50/80 border-blue-200 text-blue-950 shadow-2xs' : 'bg-slate-50/60 border-slate-200 text-slate-500'
-                    }`}
+                    } ${isMandatoryAdmin ? 'cursor-not-allowed opacity-90' : 'cursor-pointer'}`}
                   >
                     <div className="min-w-0 pr-2">
                       <p className="font-bold text-xs">{act.name}</p>
-                      <p className="text-[10px] text-slate-400">{act.desc}</p>
+                      <p className="text-[10px] text-slate-400">
+                        {isMandatoryAdmin ? 'Thao tác bắt buộc cho Quản trị viên' : act.desc}
+                      </p>
                     </div>
                     <input
                       type="checkbox"
                       checked={isAllowed}
-                      disabled={selectedRole === 'ADMIN'}
-                      onChange={() => handleToggleActionForRole(selectedRole, act.key)}
-                      className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 shrink-0 cursor-pointer"
+                      disabled={isMandatoryAdmin}
+                      onChange={() => !isMandatoryAdmin && handleToggleActionForRole(selectedRole, act.key)}
+                      className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 shrink-0 cursor-pointer disabled:cursor-not-allowed"
                     />
                   </label>
                 );

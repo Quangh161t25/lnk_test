@@ -138,25 +138,25 @@ export function buildCaiDatRows({ settings, permissions, currentUser, rawAdditio
   const standardRoles = ['ADMIN', 'KT', 'KHO', 'NPP', 'KD', 'NVKD'];
   const rawRoles = permissions?.roles || {};
   
-  // Merge any casing variations into uppercase standard
   const normalizedRoles = {};
+  standardRoles.forEach(r => {
+    // Look up directly with uppercase first, fallback to case-insensitive
+    const matchKey = Object.keys(rawRoles).find(k => k.toUpperCase() === r);
+    const source = matchKey ? rawRoles[matchKey] : null;
+    normalizedRoles[r] = {
+      modules: Array.isArray(source?.modules) ? [...source.modules] : [],
+      actions: Array.isArray(source?.actions) ? [...source.actions] : []
+    };
+  });
+
+  // Preserve any custom non-standard roles
   Object.keys(rawRoles).forEach(k => {
     const upperKey = k.toUpperCase();
     if (!normalizedRoles[upperKey]) {
-      normalizedRoles[upperKey] = { modules: [], actions: [] };
-    }
-    const currentM = normalizedRoles[upperKey].modules || [];
-    const newM = rawRoles[k]?.modules || [];
-    const currentA = normalizedRoles[upperKey].actions || [];
-    const newA = rawRoles[k]?.actions || [];
-    normalizedRoles[upperKey].modules = Array.from(new Set([...currentM, ...newM]));
-    normalizedRoles[upperKey].actions = Array.from(new Set([...currentA, ...newA]));
-  });
-
-  // Ensure standard roles exist
-  standardRoles.forEach(r => {
-    if (!normalizedRoles[r]) {
-      normalizedRoles[r] = { modules: [], actions: [] };
+      normalizedRoles[upperKey] = {
+        modules: Array.isArray(rawRoles[k]?.modules) ? [...rawRoles[k].modules] : [],
+        actions: Array.isArray(rawRoles[k]?.actions) ? [...rawRoles[k].actions] : []
+      };
     }
   });
 

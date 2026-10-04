@@ -35,10 +35,18 @@ function getModuleFromLocation() {
 
 export function App() {
   const { currentUser, canAccessModule, getAllowedModules } = useAuth();
+  const { fetchModule } = useData();
 
   const [activeModule, setActiveModule] = useState(getModuleFromLocation);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [navParams, setNavParams] = useState(null);
+
+  // On startup or login, fetch CAI_DAT system settings & permissions immediately
+  useEffect(() => {
+    if (currentUser?.id) {
+      fetchModule('caidat');
+    }
+  }, [currentUser?.id, fetchModule]);
 
   // Sync module change to browser address bar URL
   const navigateToModule = (mod, params = null) => {

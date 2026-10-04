@@ -38,7 +38,7 @@ export async function fetchSheetValues(sheetName, range = "A1:Z50000") {
 }
 
 export async function updateSheetRange(sheetName, range, values, valueInputOption = "USER_ENTERED") {
-  const response = await fetch('/api/sheets', {
+  const response = await fetch('/api/sheets?action=update', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -60,7 +60,7 @@ export async function updateSheetRange(sheetName, range, values, valueInputOptio
 }
 
 export async function appendSheetValues(sheetName, values, valueInputOption = "USER_ENTERED") {
-  const response = await fetch('/api/sheets', {
+  const response = await fetch('/api/sheets?action=append', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -81,7 +81,7 @@ export async function appendSheetValues(sheetName, values, valueInputOption = "U
 }
 
 export async function batchClearAndWriteSheet(sheetName, range, values, valueInputOption = "USER_ENTERED") {
-  const response = await fetch('/api/sheets', {
+  const response = await fetch('/api/sheets?action=batchClearAndWrite', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
