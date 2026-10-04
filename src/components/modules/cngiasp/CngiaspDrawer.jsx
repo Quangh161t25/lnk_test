@@ -33,12 +33,15 @@ export function CngiaspDrawer({ isOpen, onClose, editRow = null, onSaved }) {
 
   // Product selection list
   const productList = useMemo(() => {
-    return (productData || []).slice(1).map(r => ({
-      id: (r[0] || '').toString().trim(),
-      name: (r[1] || '').toString().trim(),
-      model: (r[2] || '').toString().trim(),
-      currentPrice: cleanNumber(r[4]) || 0
-    })).filter(p => p.id);
+    return (productData || []).slice(1).map(r => {
+      if (!r || !Array.isArray(r)) return null;
+      return {
+        id: (r[0] || '').toString().trim(),
+        name: (r[1] || '').toString().trim(),
+        model: (r[2] || '').toString().trim(),
+        currentPrice: cleanNumber(r[4]) || 0
+      };
+    }).filter(p => p && p.id);
   }, [productData]);
 
   // Filtered products for dropdown

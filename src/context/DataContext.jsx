@@ -382,25 +382,35 @@ export function DataProvider({ children }) {
     return map;
   }, [cngiaspData]);
 
-  // Get product price effective on a specific target date from CN GIÁ SP
+  // Pre-index CN GIÁ SP rows by maSp for instant O(1) effective price lookup
+  const cngiaspRowsByProduct = useMemo(() => {
+    const map = new Map();
+    (cngiaspData || []).slice(1).forEach((r, idx) => {
+      if (!r || !Array.isArray(r)) return;
+      const maSp = (r[2] || '').toString().trim().toUpperCase();
+      if (!maSp) return;
+      if (!map.has(maSp)) {
+        map.set(maSp, []);
+      }
+      const item = [...r];
+      item._sheetRow = idx + 2;
+      map.get(maSp).push(item);
+    });
+    return map;
+  }, [cngiaspData]);
+
+  // Fast O(1) effective price lookup on targetDate
   const getPriceAtDate = useCallback((productId, targetDate) => {
     if (!productId) return { price: 0, effectiveDate: null, isFromCngiasp: false };
     const cleanId = productId.toString().trim().toUpperCase();
 
-    const rows = (cngiaspData || []).slice(1).map((r, idx) => {
-      const item = [...r];
-      item._sheetRow = idx + 2;
-      return item;
-    }).filter(r => {
-      const rowMa = (r[2] || '').toString().trim().toUpperCase();
-      return rowMa === cleanId;
-    });
-
-    const catProd = getProductMap().get(cleanId.toLowerCase());
+    const rows = cngiaspRowsByProduct.get(cleanId) || [];
+    const prodMap = getProductMap();
+    const catProd = prodMap ? prodMap.get(cleanId.toLowerCase()) : null;
     const fallbackPrice = catProd ? (cleanNumber(catProd.price) || 0) : 0;
 
     return resolveEffectivePrice(rows, targetDate, fallbackPrice);
-  }, [cngiaspData, getProductMap]);
+  }, [cngiaspRowsByProduct, getProductMap]);
 
   // Sync product price to active orders in LEN_DON based on effective date of each order
   const syncProductPriceToLenDon = useCallback(async (targetMaSp) => {
@@ -411,17 +421,19 @@ export function DataProvider({ children }) {
     const freshCnData = await fetchModule('cngiasp', true);
 
     // 2. Filter rows for this product from fresh cngiasp
-    const prodCnRows = (freshCnData || []).slice(1).map((r, idx) => {
-      const item = [...r];
-      item._sheetRow = idx + 2;
-      return item;
-    }).filter(r => {
+    const prodCnRows = [];
+    (freshCnData || []).slice(1).forEach((r, idx) => {
+      if (!r || !Array.isArray(r)) return;
       const rowMa = (r[2] || '').toString().trim().toUpperCase();
-      return rowMa === cleanId;
+      if (rowMa === cleanId) {
+        const item = [...r];
+        item._sheetRow = idx + 2;
+        prodCnRows.push(item);
+      }
     });
 
     const prodMap = getProductMap();
-    const catProd = prodMap.get(cleanId.toLowerCase());
+    const catProd = prodMap ? prodMap.get(cleanId.toLowerCase()) : null;
     const fallbackPrice = catProd ? (cleanNumber(catProd.price) || 0) : 0;
 
     // 3. Fetch fresh LEN_DON rows
@@ -430,6 +442,7 @@ export function DataProvider({ children }) {
     // 4. Find matching rows in LEN_DON and calculate price according to each order's date
     const rowsToUpdate = [];
     (freshLenData || []).slice(1).forEach((r, idx) => {
+      if (!r || !Array.isArray(r)) return;
       const rowIdSp = (r[6] || '').toString().trim().toUpperCase();
       if (rowIdSp === cleanId) {
         const sheetRow = idx + 2;
@@ -473,6 +486,7 @@ export function DataProvider({ children }) {
     // Group CN GIÁ SP rows by productId
     const cnRowsByProduct = new Map();
     (freshCnData || []).slice(1).forEach((r, idx) => {
+      if (!r || !Array.isArray(r)) return;
       const maSp = (r[2] || '').toString().trim().toUpperCase();
       if (maSp) {
         if (!cnRowsByProduct.has(maSp)) {
@@ -488,13 +502,14 @@ export function DataProvider({ children }) {
     const rowsToUpdate = [];
 
     (freshLenData || []).slice(1).forEach((r, idx) => {
+      if (!r || !Array.isArray(r)) return;
       const idSp = (r[6] || '').toString().trim().toUpperCase();
       if (!idSp) return;
       const trangThai = (r[16] || '').toString().trim();
       if (trangThai === 'Đã hủy') return;
 
       const prodCnRows = cnRowsByProduct.get(idSp) || [];
-      const fb = prodMap.get(idSp.toLowerCase());
+      const fb = prodMap ? prodMap.get(idSp.toLowerCase()) : null;
       const fallbackPrice = fb ? (cleanNumber(fb.price) || 0) : 0;
 
       const orderDate = r[1]; // Ngày lên đơn

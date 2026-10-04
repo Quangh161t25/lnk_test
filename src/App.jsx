@@ -4,6 +4,7 @@ import { useData } from './context/DataContext';
 import { Header } from './components/common/Header';
 import { Sidebar } from './components/common/Sidebar';
 import { MobileNav } from './components/common/MobileNav';
+import { ErrorBoundary } from './components/common/ErrorBoundary';
 
 // Module views
 import { LoginScreen } from './components/modules/auth/LoginScreen';
@@ -126,48 +127,50 @@ export function App() {
 
         {/* Dynamic View Scroll Area - Tight & Seamless Padding */}
         <main className="flex-1 overflow-y-auto p-2 sm:p-3 pb-16 md:pb-3">
-          {activeModule === 'home' && (
-            <HomeModule onNavigate={(mod) => navigateToModule(mod)} />
-          )}
+          <ErrorBoundary>
+            {activeModule === 'home' && (
+              <HomeModule onNavigate={(mod) => navigateToModule(mod)} />
+            )}
 
-          {activeModule === 'tongquan' && (
-            <TongquanModule onNavigate={(mod) => navigateToModule(mod)} />
-          )}
+            {activeModule === 'tongquan' && (
+              <TongquanModule onNavigate={(mod) => navigateToModule(mod)} />
+            )}
 
-          {activeModule === 'nhap' && <NhapModule />}
+            {activeModule === 'nhap' && <NhapModule />}
 
-          {activeModule === 'dukien' && (
-            <DukienModule onNavigate={(mod) => navigateToModule(mod)} />
-          )}
+            {activeModule === 'dukien' && (
+              <DukienModule onNavigate={(mod) => navigateToModule(mod)} />
+            )}
 
-          {activeModule === 'xuat' && <XuatModule />}
+            {activeModule === 'xuat' && <XuatModule />}
 
-          {activeModule === 'chuyenkho' && <ChuyenkhoModule />}
+            {activeModule === 'chuyenkho' && <ChuyenkhoModule />}
 
-          {activeModule === 'sanpham' && (
-            <SanphamModule onNavigateWithFilter={handleNavigateWithFilter} />
-          )}
+            {activeModule === 'sanpham' && (
+              <SanphamModule onNavigateWithFilter={handleNavigateWithFilter} />
+            )}
 
-          {activeModule === 'sanphamkho' && (
-            <SanphamkhoModule initialFilterProductId={navParams?.productId || ''} />
-          )}
+            {activeModule === 'sanphamkho' && (
+              <SanphamkhoModule initialFilterProductId={navParams?.productId || ''} />
+            )}
 
-          {activeModule === 'cngiasp' && <CngiaspModule />}
-          {activeModule === 'lendon' && <LenDonModule />}
+            {activeModule === 'cngiasp' && <CngiaspModule />}
+            {activeModule === 'lendon' && <LenDonModule />}
 
-          {activeModule === 'ton_npp' && <TonNppModule />}
+            {activeModule === 'ton_npp' && <TonNppModule />}
 
-          {activeModule === 'doisoat' && <DoisoatModule />}
+            {activeModule === 'doisoat' && <DoisoatModule />}
 
-          {activeModule === 'nhanvien' && <NhanvienModule />}
+            {activeModule === 'nhanvien' && <NhanvienModule />}
 
-          {activeModule === 'khachhang' && <KhachhangModule />}
+            {activeModule === 'khachhang' && <KhachhangModule />}
 
-          {activeModule === 'dubaonhap' && (
-            <DubaonhapModule onNavigate={(mod) => navigateToModule(mod)} />
-          )}
+            {activeModule === 'dubaonhap' && (
+              <DubaonhapModule onNavigate={(mod) => navigateToModule(mod)} />
+            )}
 
-          {activeModule === 'caidat' && <CaidatModule />}
+            {activeModule === 'caidat' && <CaidatModule />}
+          </ErrorBoundary>
         </main>
       </div>
 

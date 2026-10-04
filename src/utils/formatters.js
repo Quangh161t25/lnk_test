@@ -55,37 +55,43 @@ export function parseSimpleSheetDate(dateStr) {
  * - Fallback to product's default catalog price if no CN GIÁ SP records exist.
  */
 export function resolveEffectivePrice(productRows, targetDate, fallbackPrice = 0) {
-  if (!productRows || productRows.length === 0) {
-    return { price: fallbackPrice, effectiveDate: null, isFromCngiasp: false, row: null };
+  if (!productRows || !Array.isArray(productRows) || productRows.length === 0) {
+    return { price: cleanNumber(fallbackPrice) || 0, effectiveDate: null, isFromCngiasp: false, row: null };
   }
 
   // Parse target date to 00:00:00 local time
-  const targetD = parseSimpleSheetDate(targetDate);
-  const targetTime = Number.isNaN(targetD.getTime()) 
-    ? null 
-    : new Date(targetD.getFullYear(), targetD.getMonth(), targetD.getDate()).getTime();
+  let targetTime = null;
+  if (targetDate) {
+    const targetD = parseSimpleSheetDate(targetDate);
+    if (targetD instanceof Date && !Number.isNaN(targetD.getTime())) {
+      targetTime = new Date(targetD.getFullYear(), targetD.getMonth(), targetD.getDate()).getTime();
+    }
+  }
 
   // Map & sort rows ascending by effective date (r[1]), and then by sheetRow
-  const sorted = [...productRows].map(r => {
-    const d = parseSimpleSheetDate(r[1]);
-    const time = Number.isNaN(d.getTime()) 
-      ? 0 
-      : new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
-    return {
-      row: r,
-      time,
-      dateStr: (r[1] || '').toString().trim(),
-      giaBan: cleanNumber(r[5]) || 0,
-      sheetRow: r._sheetRow || 0
-    };
-  }).filter(item => item.time > 0 || item.giaBan > 0)
+  const sorted = [...productRows]
+    .filter(r => r && Array.isArray(r))
+    .map(r => {
+      const d = parseSimpleSheetDate(r[1]);
+      const time = (d instanceof Date && !Number.isNaN(d.getTime()))
+        ? new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime()
+        : 0;
+      return {
+        row: r,
+        time,
+        dateStr: (r[1] || '').toString().trim(),
+        giaBan: cleanNumber(r[5]) || 0,
+        sheetRow: r._sheetRow || 0
+      };
+    })
+    .filter(item => item.time > 0 || item.giaBan > 0)
     .sort((a, b) => {
       if (a.time !== b.time) return a.time - b.time;
       return a.sheetRow - b.sheetRow;
     });
 
   if (sorted.length === 0) {
-    return { price: fallbackPrice, effectiveDate: null, isFromCngiasp: false, row: null };
+    return { price: cleanNumber(fallbackPrice) || 0, effectiveDate: null, isFromCngiasp: false, row: null };
   }
 
   // If target date is invalid/missing, take latest record

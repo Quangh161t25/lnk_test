@@ -63,7 +63,7 @@ export function Drawer({
         </div>
 
         {/* Content */}
-        <div className={contentClassName}>
+        <div className={`min-h-0 ${contentClassName}`}>
           {children}
         </div>
       </div>

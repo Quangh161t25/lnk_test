@@ -101,23 +101,26 @@ export function LenDonDrawer({
 
     // First scan productData
     (productData || []).slice(1).forEach(r => {
+      if (!r || !Array.isArray(r)) return;
       const id = (r[0] || '').toString().trim();
       if (!id) return;
+      const catalogPrice = cleanNumber(r[4]) || 0;
       const priceInfo = getPriceAtDate 
         ? getPriceAtDate(id, date) 
-        : { price: cleanNumber(r[4]) || 0, effectiveDate: null, isFromCngiasp: false };
+        : { price: catalogPrice, effectiveDate: null, isFromCngiasp: false };
 
       map.set(id.toLowerCase(), {
         id,
         name: (r[1] || '').toString().trim(),
-        price: priceInfo.price,
-        priceSourceDate: priceInfo.effectiveDate,
-        isFromCngiasp: priceInfo.isFromCngiasp
+        price: priceInfo?.price !== undefined ? priceInfo.price : catalogPrice,
+        priceSourceDate: priceInfo?.effectiveDate || null,
+        isFromCngiasp: Boolean(priceInfo?.isFromCngiasp)
       });
     });
 
     // Also include warehouseProductData if any
     (warehouseProductData || []).slice(1).forEach(r => {
+      if (!r || !Array.isArray(r)) return;
       const id = (r[2] || '').toString().trim();
       if (id && !map.has(id.toLowerCase())) {
         const priceInfo = getPriceAtDate 
@@ -127,15 +130,15 @@ export function LenDonDrawer({
         map.set(id.toLowerCase(), {
           id,
           name: (r[3] || '').toString().trim(),
-          price: priceInfo.price,
-          priceSourceDate: priceInfo.effectiveDate,
-          isFromCngiasp: priceInfo.isFromCngiasp
+          price: priceInfo?.price !== undefined ? priceInfo.price : 0,
+          priceSourceDate: priceInfo?.effectiveDate || null,
+          isFromCngiasp: Boolean(priceInfo?.isFromCngiasp)
         });
       }
     });
 
     return Array.from(map.values());
-  }, [productData, warehouseProductData, date, getPriceAtDate, cngiaspData]);
+  }, [productData, warehouseProductData, date, getPriceAtDate]);
 
   // Helper to get effective price of a single product ID on a specific date (defaults to current order date)
   const getProductPriceInfo = useCallback((rawId, targetDate = date) => {
@@ -144,14 +147,14 @@ export function LenDonDrawer({
     if (getPriceAtDate) {
       const info = getPriceAtDate(cleanId, targetDate);
       return {
-        price: info.price,
-        date: info.effectiveDate,
-        isFromCngiasp: info.isFromCngiasp
+        price: info?.price || 0,
+        date: info?.effectiveDate || null,
+        isFromCngiasp: Boolean(info?.isFromCngiasp)
       };
     }
     const catProd = productMap.get(cleanId.toLowerCase());
     return {
-      price: catProd ? (catProd.price || 0) : 0,
+      price: catProd ? (cleanNumber(catProd.price) || 0) : 0,
       date: null,
       isFromCngiasp: false
     };
@@ -454,11 +457,11 @@ export function LenDonDrawer({
       onClose={onClose}
       title={isEditing ? `Chỉnh sửa Đơn hàng: ${mdh}` : "Tạo Đơn Hàng Mới (Lên Đơn)"}
       width="w-full max-w-[96vw] lg:max-w-6xl xl:max-w-7xl 2xl:max-w-[1500px]"
-      contentClassName="flex-1 overflow-hidden flex flex-col"
+      contentClassName="flex-1 min-h-0 flex flex-col"
     >
-      <div className="flex flex-col h-full bg-slate-50 text-xs">
+      <div className="flex flex-col flex-1 min-h-0 bg-slate-50 text-xs">
         {/* Form Body */}
-        <div className="p-4 sm:p-5 space-y-4 flex-1 overflow-y-auto">
+        <div className="p-4 sm:p-5 space-y-4 flex-1 min-h-0 overflow-y-auto">
           {/* Header Info Banner */}
           <div className="bg-amber-50/80 border border-amber-200/80 rounded-xl p-3 flex items-center justify-between text-amber-900">
             <div className="flex items-center gap-2">
