@@ -8,7 +8,6 @@ import { ExcelUploadModal } from '../../common/ExcelUploadModal';
 import { ColumnManagerModal } from '../../common/ColumnManagerModal';
 import { useColumnManager } from '../../../hooks/useColumnManager';
 import { exportToExcel, downloadModuleTemplate } from '../../../services/excelService';
-import { calculateWarehouseStockMap } from '../../../utils/calculations';
 import { formatNumber, cleanNumber, matchesSearch } from '../../../utils/formatters';
 import { 
   Plus, 
@@ -27,12 +26,11 @@ const DEFAULT_SANPHAMKHO_COLUMNS = [
   { key: 'id_sp', label: 'Mã sản phẩm', width: 130, align: 'left', format: 'bold' },
   { key: 'ten_sp', label: 'Tên sản phẩm', width: 220, align: 'left', format: 'default' },
   { key: 'ton_dau', label: 'Tồn đầu kỳ', width: 110, align: 'right', format: 'number' },
-  { key: 'ton_thuc_te', label: 'Tồn thực tế hiện tại', width: 130, align: 'right', format: 'number' },
   { key: 'actions', label: 'Thao tác', width: 80, align: 'center', format: 'default' },
 ];
 
 export function SanphamkhoModule({ initialFilterProductId = '' }) {
-  const { warehouseProductData, nhapData, xuatData, transferData, appendRow, updateRow, fetchModule, loadingModules } = useData();
+  const { warehouseProductData, appendRow, updateRow, fetchModule, loadingModules } = useData();
   const { canAccessWarehouse } = useAuth();
   const { getWarehouseOptions } = useSettings();
 
@@ -60,36 +58,18 @@ export function SanphamkhoModule({ initialFilterProductId = '' }) {
   const [editRow, setEditRow] = useState(null);
   const [isExcelModalOpen, setIsExcelModalOpen] = useState(false);
 
-  // Always fetch latest sanphamkho & transaction data on mount
+  // Always fetch latest sanphamkho data on mount
   React.useEffect(() => {
     fetchModule('sanphamkho');
-    fetchModule('nhap');
-    fetchModule('xuat');
-    fetchModule('chuyenkho');
   }, [fetchModule]);
 
   const handleRefreshAll = async () => {
-    await Promise.all([
-      fetchModule('sanphamkho', true),
-      fetchModule('nhap', true),
-      fetchModule('xuat', true),
-      fetchModule('chuyenkho', true)
-    ]);
+    await fetchModule('sanphamkho', true);
   };
 
-  const isLoading = Boolean(
-    loadingModules?.sanphamkho ||
-    loadingModules?.nhap ||
-    loadingModules?.xuat ||
-    loadingModules?.chuyenkho
-  );
+  const isLoading = Boolean(loadingModules?.sanphamkho);
 
   const warehouses = getWarehouseOptions();
-
-  // Calculated stock per warehouse
-  const liveStockMap = useMemo(() => {
-    return calculateWarehouseStockMap(nhapData, xuatData, transferData, warehouseProductData);
-  }, [nhapData, xuatData, transferData, warehouseProductData]);
 
   // Merged warehouse rows
   const mergedRows = useMemo(() => {
@@ -150,14 +130,10 @@ export function SanphamkhoModule({ initialFilterProductId = '' }) {
   };
 
   const handleExportExcel = () => {
-    const headers = ['ID', 'Kho', 'Mã SP', 'Tên sản phẩm', 'Tồn đầu', 'Tồn thực tế'];
+    const headers = ['ID', 'Kho', 'Mã SP', 'Tên sản phẩm', 'Tồn đầu kỳ'];
     const data = [
       headers,
-      ...mergedRows.map(r => {
-        const key = `${r[1].toUpperCase()}|${r[2].toUpperCase()}`;
-        const realStock = liveStockMap.get(key) ?? r[4];
-        return [r[0], r[1], r[2], r[3], r[4], realStock];
-      })
+      ...mergedRows.map(r => [r[0], r[1], r[2], r[3], r[4]])
     ];
     exportToExcel(data, `San_pham_kho_${Date.now()}.xlsx`, 'DS_SP_KHO');
   };
@@ -308,9 +284,6 @@ export function SanphamkhoModule({ initialFilterProductId = '' }) {
             <tbody className="divide-y divide-slate-100">
               {paginatedRows.length > 0 ? (
                 paginatedRows.map((row, idx) => {
-                  const key = `${row[1].toUpperCase()}|${row[2].toUpperCase()}`;
-                  const liveStock = liveStockMap.get(key) ?? row[4];
-
                   return (
                     <tr key={idx} className="hover:bg-indigo-50/30 transition">
                       {visibleColumns.map(col => {
@@ -347,18 +320,6 @@ export function SanphamkhoModule({ initialFilterProductId = '' }) {
                             return (
                               <td key={col.key} style={widthStyle} className={`py-1.5 px-2.5 whitespace-nowrap text-slate-500 font-semibold ${alignClass}`}>
                                 {formatNumber(row[4])}
-                              </td>
-                            );
-
-                          case 'ton_thuc_te':
-                            return (
-                              <td key={col.key} style={widthStyle} className={`py-1.5 px-2.5 whitespace-nowrap ${alignClass}`}>
-                                <span className={`px-2 py-0.5 rounded font-black text-xs ${
-                                  liveStock <= 0 ? 'bg-red-50 text-red-600 border border-red-200' :
-                                  'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                                }`}>
-                                  {formatNumber(liveStock)}
-                                </span>
                               </td>
                             );
 

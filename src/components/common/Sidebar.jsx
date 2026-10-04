@@ -1,4 +1,5 @@
 import React from 'react';
+import appLogo from '../../assets/logo.png';
 import { useAuth } from '../../context/AuthContext';
 import { useSettings } from '../../context/SettingsContext';
 import { MODULE_DEFINITIONS } from '../../config/constants';
@@ -53,9 +54,11 @@ export function Sidebar({ activeModule, onSelectModule, isCollapsed, onToggleCol
       {/* Brand Header */}
       <div className="h-14 flex items-center justify-between px-3 border-b border-slate-100 shrink-0 bg-white">
         <div className="flex items-center gap-2.5 overflow-hidden">
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center font-black text-white text-sm shadow-md shadow-blue-500/20 shrink-0">
-            LNK
-          </div>
+          <img 
+            src={appLogo} 
+            alt="Logo" 
+            className="w-8 h-8 rounded-xl object-contain shrink-0 bg-white shadow-sm border border-slate-100 p-0.5" 
+          />
           {!isCollapsed && (
             <div className="truncate">
               <h2 className="font-bold text-slate-800 text-xs tracking-tight truncate leading-tight">

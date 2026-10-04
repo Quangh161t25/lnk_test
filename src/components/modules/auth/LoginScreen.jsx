@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import appLogo from '../../../assets/logo.png';
 import { useAuth } from '../../../context/AuthContext';
 import { Lock, User, LogIn, AlertCircle, RotateCw } from 'lucide-react';
 
@@ -29,9 +30,11 @@ export function LoginScreen() {
       <div className="w-full max-w-md bg-white rounded-3xl shadow-xl border border-slate-200 p-8 space-y-6">
         {/* Logo & Header */}
         <div className="text-center space-y-3">
-          <div className="w-16 h-16 bg-gradient-to-tr from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center text-white font-black text-2xl mx-auto shadow-md shadow-blue-500/20">
-            LNK
-          </div>
+          <img 
+            src={appLogo} 
+            alt="Logo" 
+            className="w-16 h-16 rounded-2xl object-contain mx-auto shadow-md bg-white p-1 border border-slate-100" 
+          />
           <div>
             <h2 className="text-2xl font-bold text-slate-800">Đăng Nhập Hệ Thống</h2>
             <p className="text-xs text-slate-500 mt-1">Quản lý kho hàng & ERP thông minh</p>
