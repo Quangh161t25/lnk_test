@@ -3,15 +3,10 @@ import { Drawer } from '../../common/Drawer';
 import { ProductSearchCell } from '../../common/ProductSearchCell';
 import { useData } from '../../../context/DataContext';
 import { formatDateInput, generateRandomOrderId, cleanNumber, formatNumber } from '../../../utils/formatters';
+import { DUKIEN_STATUS_OPTIONS } from '../../../config/constants';
 import { Plus, Trash2, CalendarClock, Package, AlertCircle } from 'lucide-react';
 
-const COMMON_TRANG_THAI = [
-  'Chờ hàng về',
-  'Đang vận chuyển',
-  'Đã về một phần',
-  'Đã nhập đủ',
-  'Đã hủy'
-];
+const COMMON_TRANG_THAI = DUKIEN_STATUS_OPTIONS;
 
 export function DukienDrawer({ 
   isOpen, 
@@ -25,7 +20,7 @@ export function DukienDrawer({
   const [ngayNhap, setNgayNhap] = useState(formatDateInput(new Date()));
   const [maPo, setMaPo] = useState('');
   const [ngayVeDuKien, setNgayVeDuKien] = useState(formatDateInput(new Date()));
-  const [trangThai, setTrangThai] = useState('Chờ hàng về');
+  const [trangThai, setTrangThai] = useState('Chưa giao (Pending)');
   const [ghiChu, setGhiChu] = useState('');
   const [initialSheetRows, setInitialSheetRows] = useState([]);
   const [isSaving, setIsSaving] = useState(false);
@@ -79,7 +74,7 @@ export function DukienDrawer({
       const loadedNgayNhap = formatDateInput(firstRow[2]) || formatDateInput(new Date());
       const loadedMaPo = firstRow[3] || '';
       const loadedNgayVeDuKien = formatDateInput(firstRow[8]) || formatDateInput(new Date());
-      const loadedTrangThai = firstRow[9] || 'Chờ hàng về';
+      const loadedTrangThai = firstRow[9] || 'Chưa giao (Pending)';
       const loadedGhiChu = firstRow[12] || '';
 
       const sheetRows = editOrderRows.map(r => r._sheetRow).filter(Boolean);

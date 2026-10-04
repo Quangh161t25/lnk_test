@@ -28,9 +28,30 @@ export const DEFAULT_APP_SETTINGS = {
   autoRefreshIntervalSec: 300,
   kiemKhoStatuses: ['Chờ kiểm', 'Đã kiểm', 'Lệch kho', 'Hoàn thành'],
   xuatConfirmStatuses: ['Đã nhặt hàng', 'Đã lên xe', 'Hoàn thành'],
+  dukienStatuses: [
+    'Đang làm việc',
+    'Đã đặt hàng',
+    'Chưa giao (Pending)',
+    'Đang trên đường (In Transit)',
+    'Đã về kho - Đang kiểm (Arrived - Checking)',
+    'Chờ kiểm định',
+    'Đã nhập kho xong (Completed)',
+    'Bị hoãn (Delayed)'
+  ],
   lastSyncedTime: null,
   syncSource: 'LOCAL'
 };
+
+export const DUKIEN_STATUS_OPTIONS = [
+  'Đang làm việc',
+  'Đã đặt hàng',
+  'Chưa giao (Pending)',
+  'Đang trên đường (In Transit)',
+  'Đã về kho - Đang kiểm (Arrived - Checking)',
+  'Chờ kiểm định',
+  'Đã nhập kho xong (Completed)',
+  'Bị hoãn (Delayed)'
+];
 
 export const MODULE_DEFINITIONS = [
   { key: 'home', name: 'Trang chủ', desc: 'Trung tâm điều hướng lối tắt hệ thống', icon: 'Home', color: 'blue' },

@@ -87,7 +87,12 @@ export function DubaonhapModule({ onNavigate }) {
     (dukienData || []).slice(1).forEach(row => {
       const id = (row[4] || '').toString().trim().toLowerCase();
       const status = (row[9] || '').toString().trim();
-      if (id && status !== 'Đã nhập đủ' && status !== 'Đã hủy') {
+      const isFinished = 
+        status === 'Đã nhập kho xong (Completed)' ||
+        status === 'Đã nhập đủ' ||
+        status === 'Đã hủy' ||
+        status === 'Bị hoãn (Delayed)';
+      if (id && !isFinished) {
         const slgDuKien = cleanNumber(row[7]);
         const slgNhan = cleanNumber(row[10]);
         const remaining = Math.max(0, slgDuKien - slgNhan);

@@ -7,6 +7,7 @@ import { ColumnManagerModal } from '../../common/ColumnManagerModal';
 import { useColumnManager } from '../../../hooks/useColumnManager';
 import { exportToExcel, downloadModuleTemplate } from '../../../services/excelService';
 import { formatNumber, formatDateVN, parseSimpleSheetDate, cleanNumber } from '../../../utils/formatters';
+import { DUKIEN_STATUS_OPTIONS } from '../../../config/constants';
 import { 
   Plus, 
   Upload, 
@@ -18,6 +19,34 @@ import {
   ArrowRightCircle,
   SlidersHorizontal
 } from 'lucide-react';
+
+export function getDukienStatusBadgeClass(status) {
+  switch (status) {
+    case 'Đã nhập kho xong (Completed)':
+    case 'Đã nhập đủ':
+      return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+    case 'Đang trên đường (In Transit)':
+    case 'Đang vận chuyển':
+      return 'bg-indigo-50 text-indigo-700 border-indigo-200';
+    case 'Chưa giao (Pending)':
+    case 'Chờ hàng về':
+      return 'bg-amber-50 text-amber-700 border-amber-200';
+    case 'Đã về kho - Đang kiểm (Arrived - Checking)':
+    case 'Đã về một phần':
+      return 'bg-purple-50 text-purple-700 border-purple-200';
+    case 'Chờ kiểm định':
+      return 'bg-orange-50 text-orange-700 border-orange-200';
+    case 'Đã đặt hàng':
+      return 'bg-sky-50 text-sky-700 border-sky-200';
+    case 'Đang làm việc':
+      return 'bg-slate-100 text-slate-700 border-slate-200';
+    case 'Bị hoãn (Delayed)':
+    case 'Đã hủy':
+      return 'bg-red-50 text-red-600 border-red-200';
+    default:
+      return 'bg-slate-50 text-slate-600 border-slate-200';
+  }
+}
 
 const DEFAULT_DUKIEN_COLUMNS = [
   { key: 'ma_po', label: 'Mã PO', width: 120, align: 'left', format: 'bold' },
@@ -270,11 +299,9 @@ export function DukienModule({ onNavigate }) {
               className="px-2 py-1 border border-slate-200 rounded-md bg-white text-slate-700 font-medium focus:ring-1 focus:ring-amber-500 outline-none"
             >
               <option value="">Tất cả trạng thái</option>
-              <option value="Chờ hàng về">Chờ hàng về</option>
-              <option value="Đang vận chuyển">Đang vận chuyển</option>
-              <option value="Đã về một phần">Đã về một phần</option>
-              <option value="Đã nhập đủ">Đã nhập đủ</option>
-              <option value="Đã hủy">Đã hủy</option>
+              {DUKIEN_STATUS_OPTIONS.map(st => (
+                <option key={st} value={st}>{st}</option>
+              ))}
             </select>
           </div>
 
@@ -404,13 +431,8 @@ export function DukienModule({ onNavigate }) {
                           case 'trang_thai':
                             return (
                               <td key={col.key} style={widthStyle} className={`py-1.5 px-2.5 whitespace-nowrap ${alignClass}`}>
-                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                                  status === 'Đã nhập đủ' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
-                                  status === 'Đã về một phần' ? 'bg-blue-50 text-blue-700 border border-blue-200' :
-                                  status === 'Đã hủy' ? 'bg-red-50 text-red-600 border border-red-200' :
-                                  'bg-amber-50 text-amber-800 border border-amber-200'
-                                }`}>
-                                  {status}
+                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${getDukienStatusBadgeClass(status)}`}>
+                                  {status || 'Chưa xác định'}
                                 </span>
                               </td>
                             );
