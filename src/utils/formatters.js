@@ -46,6 +46,73 @@ export function parseSimpleSheetDate(dateStr) {
   return Number.isNaN(ts) ? new Date(NaN) : new Date(ts);
 }
 
+/**
+ * Resolves the unit price for a product on a target date based on CN GIÁ SP history.
+ * Rule:
+ * - Sort records ascending by date.
+ * - If targetDate < oldest record's date -> take the oldest record's price (user rule: "ngày lên đơn dưới ngày 1 sẽ là 150 vì dưới đó k có giá nữa").
+ * - Otherwise -> take the latest record where recordDate <= targetDate ("ngày 3 là 200, ngày 4 là 200, ngày 5 là 500").
+ * - Fallback to product's default catalog price if no CN GIÁ SP records exist.
+ */
+export function resolveEffectivePrice(productRows, targetDate, fallbackPrice = 0) {
+  if (!productRows || productRows.length === 0) {
+    return { price: fallbackPrice, effectiveDate: null, isFromCngiasp: false, row: null };
+  }
+
+  // Parse target date to 00:00:00 local time
+  const targetD = parseSimpleSheetDate(targetDate);
+  const targetTime = Number.isNaN(targetD.getTime()) 
+    ? null 
+    : new Date(targetD.getFullYear(), targetD.getMonth(), targetD.getDate()).getTime();
+
+  // Map & sort rows ascending by effective date (r[1]), and then by sheetRow
+  const sorted = [...productRows].map(r => {
+    const d = parseSimpleSheetDate(r[1]);
+    const time = Number.isNaN(d.getTime()) 
+      ? 0 
+      : new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+    return {
+      row: r,
+      time,
+      dateStr: (r[1] || '').toString().trim(),
+      giaBan: cleanNumber(r[5]) || 0,
+      sheetRow: r._sheetRow || 0
+    };
+  }).filter(item => item.time > 0 || item.giaBan > 0)
+    .sort((a, b) => {
+      if (a.time !== b.time) return a.time - b.time;
+      return a.sheetRow - b.sheetRow;
+    });
+
+  if (sorted.length === 0) {
+    return { price: fallbackPrice, effectiveDate: null, isFromCngiasp: false, row: null };
+  }
+
+  // If target date is invalid/missing, take latest record
+  if (targetTime === null) {
+    const latest = sorted[sorted.length - 1];
+    return { price: latest.giaBan, effectiveDate: latest.dateStr, isFromCngiasp: true, row: latest.row };
+  }
+
+  // Rule 1: targetDate is earlier than earliest record -> take earliest record
+  if (targetTime < sorted[0].time) {
+    const earliest = sorted[0];
+    return { price: earliest.giaBan, effectiveDate: earliest.dateStr, isFromCngiasp: true, row: earliest.row };
+  }
+
+  // Rule 2: find latest record where record.time <= targetTime
+  let matched = sorted[0];
+  for (let i = 0; i < sorted.length; i++) {
+    if (sorted[i].time <= targetTime) {
+      matched = sorted[i];
+    } else {
+      break;
+    }
+  }
+
+  return { price: matched.giaBan, effectiveDate: matched.dateStr, isFromCngiasp: true, row: matched.row };
+}
+
 export function formatDateVN(dateVal) {
   if (!dateVal) return '';
   const d = parseSimpleSheetDate(dateVal);

@@ -40,7 +40,8 @@ export function LenDonDrawer({
     productData, 
     cngiaspData,
     getProductMap,
-    getLatestPriceMap 
+    getLatestPriceMap,
+    getPriceAtDate 
   } = useData();
 
   const [date, setDate] = useState(formatDateInput(new Date()));
@@ -94,12 +95,7 @@ export function LenDonDrawer({
     );
   }, [usersData]);
 
-  // Latest prices from CN GIÁ SP
-  const latestPriceMap = useMemo(() => {
-    return getLatestPriceMap ? getLatestPriceMap() : new Map();
-  }, [getLatestPriceMap, cngiaspData]);
-
-  // Product list for search & auto-fill with LATEST PRICE from CN GIÁ SP
+  // Product list for search & auto-fill evaluated according to selected order `date`
   const productList = useMemo(() => {
     const map = new Map();
 
@@ -107,19 +103,16 @@ export function LenDonDrawer({
     (productData || []).slice(1).forEach(r => {
       const id = (r[0] || '').toString().trim();
       if (!id) return;
-      const idUpper = id.toUpperCase();
-      const cnRecord = latestPriceMap.get(idUpper);
-
-      // Price prioritize: CN GIÁ SP latest update price (gia_ban), fallback to product catalog price
-      const price = cnRecord ? cnRecord.giaBan : (cleanNumber(r[4]) || 0);
-      const priceDate = cnRecord ? cnRecord.ngayCapNhat : null;
+      const priceInfo = getPriceAtDate 
+        ? getPriceAtDate(id, date) 
+        : { price: cleanNumber(r[4]) || 0, effectiveDate: null, isFromCngiasp: false };
 
       map.set(id.toLowerCase(), {
         id,
         name: (r[1] || '').toString().trim(),
-        price,
-        priceSourceDate: priceDate,
-        isFromCngiasp: Boolean(cnRecord)
+        price: priceInfo.price,
+        priceSourceDate: priceInfo.effectiveDate,
+        isFromCngiasp: priceInfo.isFromCngiasp
       });
     });
 
@@ -127,45 +120,60 @@ export function LenDonDrawer({
     (warehouseProductData || []).slice(1).forEach(r => {
       const id = (r[2] || '').toString().trim();
       if (id && !map.has(id.toLowerCase())) {
-        const idUpper = id.toUpperCase();
-        const cnRecord = latestPriceMap.get(idUpper);
-        const price = cnRecord ? cnRecord.giaBan : 0;
-        const priceDate = cnRecord ? cnRecord.ngayCapNhat : null;
+        const priceInfo = getPriceAtDate 
+          ? getPriceAtDate(id, date) 
+          : { price: 0, effectiveDate: null, isFromCngiasp: false };
 
         map.set(id.toLowerCase(), {
           id,
           name: (r[3] || '').toString().trim(),
-          price,
-          priceSourceDate: priceDate,
-          isFromCngiasp: Boolean(cnRecord)
+          price: priceInfo.price,
+          priceSourceDate: priceInfo.effectiveDate,
+          isFromCngiasp: priceInfo.isFromCngiasp
         });
       }
     });
 
     return Array.from(map.values());
-  }, [productData, warehouseProductData, latestPriceMap]);
+  }, [productData, warehouseProductData, date, getPriceAtDate, cngiaspData]);
 
-  // Helper to get latest price of a single product ID
-  const getProductLatestPriceInfo = (rawId) => {
+  // Helper to get effective price of a single product ID on a specific date (defaults to current order date)
+  const getProductPriceInfo = useCallback((rawId, targetDate = date) => {
     if (!rawId) return { price: 0, date: null, isFromCngiasp: false };
     const cleanId = rawId.trim().toUpperCase();
-    const cnRecord = latestPriceMap.get(cleanId);
-    if (cnRecord) {
+    if (getPriceAtDate) {
+      const info = getPriceAtDate(cleanId, targetDate);
       return {
-        price: cnRecord.giaBan || 0,
-        date: cnRecord.ngayCapNhat,
-        isFromCngiasp: true
+        price: info.price,
+        date: info.effectiveDate,
+        isFromCngiasp: info.isFromCngiasp
       };
     }
     const catProd = productMap.get(cleanId.toLowerCase());
-    if (catProd) {
+    return {
+      price: catProd ? (catProd.price || 0) : 0,
+      date: null,
+      isFromCngiasp: false
+    };
+  }, [date, getPriceAtDate, productMap]);
+
+  // When order date changes: automatically recalculate prices based on effective date
+  const handleDateChange = (newDate) => {
+    setDate(newDate);
+    setItems(prevItems => prevItems.map(it => {
+      if (!it.idSp || it.priceSource === 'Thủ công') return it;
+      const priceInfo = getPriceAtDate ? getPriceAtDate(it.idSp, newDate) : { price: it.donGia, effectiveDate: null, isFromCngiasp: false };
+      const newPrice = priceInfo.price;
+      const numSlg = cleanNumber(it.slg) || 1;
       return {
-        price: catProd.price || 0,
-        date: null,
-        isFromCngiasp: false
+        ...it,
+        donGia: newPrice,
+        thanhTien: numSlg * newPrice,
+        priceSource: priceInfo.isFromCngiasp 
+          ? `CN Giá SP (${priceInfo.effectiveDate || 'Áp dụng'})` 
+          : (it.priceSource || 'DS_SP')
       };
-    }
-    return { price: 0, date: null, isFromCngiasp: false };
+    }));
   };
 
   useEffect(() => {
@@ -192,7 +200,7 @@ export function LenDonDrawer({
         const thanhTien = cleanNumber(r[10]) || (slg * donGia);
         const itemLoaiHinh = (r[14] || '').toString().trim();
         const normItemLoaiHinh = itemLoaiHinh.toLowerCase().includes('bảo hành') || itemLoaiHinh.toUpperCase() === 'BH' ? 'Bảo hành' : 'Thường';
-        const priceInfo = getProductLatestPriceInfo(idSp);
+        const priceInfo = getProductPriceInfo(idSp, loadedDate);
 
         return {
           detailId: r[0] || '',
@@ -261,7 +269,7 @@ export function LenDonDrawer({
     }
   };
 
-  // When a product is selected from dropdown: ALWAYS fetch latest price from CN GIÁ SP
+  // When a product is selected from dropdown: ALWAYS fetch price effective on order date
   const handleProductSelect = (index, product) => {
     if (!product) return;
     const next = [...items];
@@ -269,11 +277,11 @@ export function LenDonDrawer({
     item.idSp = product.id;
     item.tenSp = product.name;
 
-    // Use latest price from CN GIÁ SP (passed via product.price)
-    item.donGia = product.price || 0;
-    item.thanhTien = (cleanNumber(item.slg) || 1) * (product.price || 0);
-    item.priceSource = product.isFromCngiasp 
-      ? `CN Giá SP (${product.priceSourceDate || 'Mới nhất'})` 
+    const priceInfo = getProductPriceInfo(product.id, date);
+    item.donGia = priceInfo.price;
+    item.thanhTien = (cleanNumber(item.slg) || 1) * priceInfo.price;
+    item.priceSource = priceInfo.isFromCngiasp 
+      ? `CN Giá SP (${priceInfo.date || 'Áp dụng'})` 
       : 'DS_SP';
     setItems(next);
   };
@@ -289,7 +297,7 @@ export function LenDonDrawer({
     }
 
     item.idSp = targetId;
-    const priceInfo = getProductLatestPriceInfo(targetId);
+    const priceInfo = getProductPriceInfo(targetId, date);
     const catProd = productMap.get(targetId.toLowerCase());
 
     if (catProd || priceInfo.price > 0) {
@@ -297,7 +305,7 @@ export function LenDonDrawer({
       item.donGia = priceInfo.price || 0;
       item.thanhTien = (cleanNumber(item.slg) || 1) * (priceInfo.price || 0);
       item.priceSource = priceInfo.isFromCngiasp 
-        ? `CN Giá SP (${priceInfo.date || 'Mới nhất'})` 
+        ? `CN Giá SP (${priceInfo.date || 'Áp dụng'})` 
         : 'DS_SP';
     }
     setItems(next);
@@ -456,7 +464,7 @@ export function LenDonDrawer({
             <div className="flex items-center gap-2">
               <BadgePercent className="w-4 h-4 text-amber-600 shrink-0" />
               <span className="font-medium text-[11px]">
-                Đơn giá sản phẩm tự động áp dụng <strong>giá cập nhật gần nhất</strong> từ module <strong>CN GIÁ SP</strong>.
+                Đơn giá sản phẩm tự động áp dụng <strong>giá hiệu lực theo ngày lập đơn</strong> từ module <strong>CN GIÁ SP</strong>.
               </span>
             </div>
             {onOpenBarcodeScan && (
@@ -483,7 +491,7 @@ export function LenDonDrawer({
                 <input
                   type="date"
                   value={date}
-                  onChange={(e) => setDate(e.target.value)}
+                  onChange={(e) => handleDateChange(e.target.value)}
                   className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg focus:ring-1 focus:ring-blue-500 outline-none font-medium bg-slate-50/50"
                   required
                 />

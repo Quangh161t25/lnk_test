@@ -165,11 +165,11 @@ export function CngiaspModule() {
       }
       await fetchModule('cngiasp', true);
 
-      // Tự động cập nhật lại giá cho các đơn hàng trong module Lên đơn
+      // Tự động cập nhật lại giá cho các đơn hàng trong module Lên đơn theo ngày hiệu lực
       const targetMaSp = rowValues[2];
       const syncRes = await syncProductPriceToLenDon(targetMaSp);
       if (syncRes && syncRes.updatedCount > 0) {
-        alert(`Đã lưu bảng giá và tự động cập nhật lại đơn giá (${formatCurrency(syncRes.newPrice)}) cho ${syncRes.updatedCount} dòng đơn hàng trong module Lên đơn.`);
+        alert(`Đã lưu bảng giá và tự động cập nhật lại đơn giá theo ngày hiệu lực cho ${syncRes.updatedCount} dòng đơn hàng trong module Lên đơn.`);
       }
     } catch (err) {
       alert("Lỗi khi lưu bảng giá sản phẩm: " + err.message);
@@ -186,10 +186,10 @@ export function CngiaspModule() {
         await deleteRow('cngiasp', sheetRow);
         await fetchModule('cngiasp', true);
 
-        // Tự động cập nhật lại giá cho các đơn hàng trong module Lên đơn sau khi xóa
+        // Tự động cập nhật lại giá cho các đơn hàng trong module Lên đơn sau khi xóa theo ngày hiệu lực
         const syncRes = await syncProductPriceToLenDon(targetMaSp);
         if (syncRes && syncRes.updatedCount > 0) {
-          alert(`Đã xóa bản ghi giá và tự động cập nhật lại đơn giá mới (${formatCurrency(syncRes.newPrice)}) cho ${syncRes.updatedCount} dòng đơn hàng trong module Lên đơn.`);
+          alert(`Đã xóa bản ghi giá và tự động cập nhật lại giá theo ngày hiệu lực cho ${syncRes.updatedCount} dòng đơn hàng trong module Lên đơn.`);
         }
       } catch (err) {
         alert("Lỗi khi xóa bản ghi giá: " + err.message);

@@ -77,6 +77,7 @@ export function LenDonModule() {
     fetchModule, 
     loadingModules,
     getLatestPriceMap,
+    getPriceAtDate,
     syncAllPricesToLenDon
   } = useData();
 
@@ -420,19 +421,21 @@ export function LenDonModule() {
 
       const normalizedRows = dataRows.map((r, idx) => {
         const idSp = (r[6] || '').toString().trim().toUpperCase();
+        const orderDate = r[1] || formatDateVN(new Date());
         let donGia = cleanNumber(r[9]);
         const slg = cleanNumber(r[8]) || 1;
 
-        // If don_gia is missing, automatically pick from CN GIÁ SP
-        if (!donGia && idSp && latestPrices.has(idSp)) {
-          donGia = latestPrices.get(idSp).giaBan || 0;
+        // If don_gia is missing, automatically pick from CN GIÁ SP based on order date
+        if (!donGia && idSp && getPriceAtDate) {
+          const priceInfo = getPriceAtDate(idSp, orderDate);
+          donGia = priceInfo.price || 0;
         }
 
         const thanhTien = cleanNumber(r[10]) || (slg * donGia);
 
         return [
           r[0] || `LD-${Date.now()}-${idx + 1}`,
-          r[1] || formatDateVN(new Date()),
+          orderDate,
           r[2] || 'LÊN ĐƠN',
           r[3] || `LD${Date.now()}`,
           r[4] || '',
@@ -469,10 +472,10 @@ export function LenDonModule() {
 
   // Sync all prices from CN GIÁ SP
   const handleSyncPrices = async () => {
-    if (!window.confirm("Hệ thống sẽ rà soát tất cả đơn hàng và áp dụng giá bán cập nhật gần nhất từ module CN GIÁ SP. Tiếp tục?")) return;
+    if (!window.confirm("Hệ thống sẽ rà soát tất cả đơn hàng và áp dụng giá bán theo ngày lên đơn từ module CN GIÁ SP. Tiếp tục?")) return;
     try {
       const count = await syncAllPricesToLenDon();
-      alert(`Đã kiểm tra và cập nhật lại đơn giá mới nhất cho ${count} dòng đơn hàng.`);
+      alert(`Đã kiểm tra và cập nhật lại đơn giá theo ngày hiệu lực cho ${count} dòng đơn hàng.`);
     } catch (err) {
       alert("Lỗi khi cập nhật giá đơn hàng: " + err.message);
     }
