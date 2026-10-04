@@ -9,7 +9,7 @@ import { ColumnManagerModal } from '../../common/ColumnManagerModal';
 import { useColumnManager } from '../../../hooks/useColumnManager';
 import { exportToExcel, downloadModuleTemplate } from '../../../services/excelService';
 import { calculateWarehouseStockMap } from '../../../utils/calculations';
-import { formatNumber, cleanNumber } from '../../../utils/formatters';
+import { formatNumber, cleanNumber, matchesSearch } from '../../../utils/formatters';
 import { 
   Plus, 
   Upload, 
@@ -18,7 +18,8 @@ import {
   Search, 
   Warehouse, 
   Edit3,
-  SlidersHorizontal 
+  SlidersHorizontal,
+  RotateCw
 } from 'lucide-react';
 
 const DEFAULT_SANPHAMKHO_COLUMNS = [
@@ -31,7 +32,7 @@ const DEFAULT_SANPHAMKHO_COLUMNS = [
 ];
 
 export function SanphamkhoModule({ initialFilterProductId = '' }) {
-  const { warehouseProductData, nhapData, xuatData, transferData, appendRow, updateRow, fetchModule } = useData();
+  const { warehouseProductData, nhapData, xuatData, transferData, appendRow, updateRow, fetchModule, loadingModules } = useData();
   const { canAccessWarehouse } = useAuth();
   const { getWarehouseOptions } = useSettings();
 
@@ -59,12 +60,29 @@ export function SanphamkhoModule({ initialFilterProductId = '' }) {
   const [editRow, setEditRow] = useState(null);
   const [isExcelModalOpen, setIsExcelModalOpen] = useState(false);
 
-  // Lazy load sanphamkho data on demand
+  // Always fetch latest sanphamkho & transaction data on mount
   React.useEffect(() => {
-    if (!warehouseProductData || warehouseProductData.length <= 1) {
-      fetchModule('sanphamkho');
-    }
-  }, [warehouseProductData, fetchModule]);
+    fetchModule('sanphamkho');
+    fetchModule('nhap');
+    fetchModule('xuat');
+    fetchModule('chuyenkho');
+  }, [fetchModule]);
+
+  const handleRefreshAll = async () => {
+    await Promise.all([
+      fetchModule('sanphamkho', true),
+      fetchModule('nhap', true),
+      fetchModule('xuat', true),
+      fetchModule('chuyenkho', true)
+    ]);
+  };
+
+  const isLoading = Boolean(
+    loadingModules?.sanphamkho ||
+    loadingModules?.nhap ||
+    loadingModules?.xuat ||
+    loadingModules?.chuyenkho
+  );
 
   const warehouses = getWarehouseOptions();
 
@@ -102,8 +120,8 @@ export function SanphamkhoModule({ initialFilterProductId = '' }) {
       if (warehouseFilter && kho.toLowerCase() !== warehouseFilter.toLowerCase()) return false;
 
       if (searchTerm) {
-        const text = `${row[1]} ${row[2]} ${row[3]}`.toLowerCase();
-        if (!text.includes(searchTerm.toLowerCase().trim())) return false;
+        const text = `${row[1] || ''} ${row[2] || ''} ${row[3] || ''}`;
+        if (!matchesSearch(text, searchTerm)) return false;
       }
 
       return true;
@@ -221,6 +239,16 @@ export function SanphamkhoModule({ initialFilterProductId = '' }) {
             >
               <SlidersHorizontal className="w-3.5 h-3.5 text-slate-500" />
               Cột
+            </button>
+
+            <button
+              onClick={handleRefreshAll}
+              disabled={isLoading}
+              className="px-2.5 py-1.5 border border-slate-200 text-slate-600 font-bold rounded-lg text-xs hover:bg-slate-50 transition flex items-center gap-1.5 disabled:opacity-50"
+              title="Làm mới & đồng bộ số liệu mới nhất từ Google Sheets"
+            >
+              <RotateCw className={`w-3.5 h-3.5 text-slate-500 ${isLoading ? 'animate-spin' : ''}`} />
+              Làm mới
             </button>
           </div>
         </div>

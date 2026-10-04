@@ -11,7 +11,7 @@ import { OcrOrderModal } from '../../common/OcrOrderModal';
 import { ColumnManagerModal } from '../../common/ColumnManagerModal';
 import { useColumnManager } from '../../../hooks/useColumnManager';
 import { exportToExcel, downloadModuleTemplate } from '../../../services/excelService';
-import { formatNumber, formatCurrency, formatDateVN, parseSimpleSheetDate, cleanNumber } from '../../../utils/formatters';
+import { formatNumber, formatCurrency, formatDateVN, parseSimpleSheetDate, cleanNumber, matchesSearch } from '../../../utils/formatters';
 import { 
   Plus, 
   Upload, 
@@ -27,7 +27,8 @@ import {
   PackageCheck,
   AlertCircle,
   Building2,
-  SlidersHorizontal
+  SlidersHorizontal,
+  RotateCw
 } from 'lucide-react';
 
 const DEFAULT_XUAT_COLUMNS = [
@@ -52,7 +53,7 @@ const LOAI_HINH_OPTIONS = [
 ];
 
 export function XuatModule() {
-  const { xuatData, appendRows, updateRow, deleteRow, deleteOrder, fetchModule } = useData();
+  const { xuatData, appendRows, updateRow, deleteRow, deleteOrder, fetchModule, loadingModules } = useData();
   const { currentUser, hasActionPermission, canAccessWarehouse, resolveRoleKey } = useAuth();
   const { getWarehouseOptions } = useSettings();
 
@@ -84,10 +85,16 @@ export function XuatModule() {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [editOrderRows, setEditOrderRows] = useState(null);
 
-  // Lazy load xuat data on demand
+  // Always fetch latest xuat data on mount
   React.useEffect(() => {
-    if (!xuatData || xuatData.length <= 1) fetchModule('xuat');
-  }, [xuatData, fetchModule]);
+    fetchModule('xuat');
+  }, [fetchModule]);
+
+  const handleRefresh = async () => {
+    await fetchModule('xuat', true);
+  };
+
+  const isLoading = Boolean(loadingModules?.xuat);
   const [isExcelModalOpen, setIsExcelModalOpen] = useState(false);
   const [isBarcodeModalOpen, setIsBarcodeModalOpen] = useState(false);
   const [isOcrModalOpen, setIsOcrModalOpen] = useState(false);
@@ -206,8 +213,8 @@ export function XuatModule() {
       if (dateTo && rowDate > new Date(`${dateTo}T23:59:59.999`)) return false;
 
       if (searchTerm) {
-        const text = row.map(c => (c || '').toString()).join(' ').toLowerCase();
-        if (!text.includes(searchTerm.toLowerCase().trim())) return false;
+        const text = row.map(c => (c || '').toString()).join(' ');
+        if (!matchesSearch(text, searchTerm)) return false;
       }
 
       return true;
@@ -411,6 +418,16 @@ export function XuatModule() {
             >
               <SlidersHorizontal className="w-3.5 h-3.5 text-slate-500" />
               Cột
+            </button>
+
+            <button
+              onClick={handleRefresh}
+              disabled={isLoading}
+              className="px-2.5 py-1.5 border border-slate-200 text-slate-600 font-bold rounded-lg text-xs hover:bg-slate-50 transition flex items-center gap-1.5 disabled:opacity-50"
+              title="Làm mới & đồng bộ số liệu mới nhất từ Google Sheets"
+            >
+              <RotateCw className={`w-3.5 h-3.5 text-slate-500 ${isLoading ? 'animate-spin' : ''}`} />
+              Làm mới
             </button>
           </div>
         </div>

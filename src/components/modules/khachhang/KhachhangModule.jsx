@@ -7,6 +7,7 @@ import { ExcelUploadModal } from '../../common/ExcelUploadModal';
 import { ColumnManagerModal } from '../../common/ColumnManagerModal';
 import { useColumnManager } from '../../../hooks/useColumnManager';
 import { exportToExcel, downloadModuleTemplate } from '../../../services/excelService';
+import { matchesSearch } from '../../../utils/formatters';
 import { 
   Plus, 
   Upload, 
@@ -17,7 +18,8 @@ import {
   Edit3, 
   Trash2,
   Building,
-  SlidersHorizontal
+  SlidersHorizontal,
+  RotateCw
 } from 'lucide-react';
 
 const DEFAULT_KHACHHANG_COLUMNS = [
@@ -54,12 +56,10 @@ export function KhachhangModule() {
   const [editUser, setEditUser] = useState(null);
   const [isExcelModalOpen, setIsExcelModalOpen] = useState(false);
 
-  // Lazy load customer data when visiting KhachhangModule
+  // Always fetch fresh customer data when visiting KhachhangModule
   React.useEffect(() => {
-    if (!usersData || usersData.length === 0) {
-      fetchUsersData();
-    }
-  }, [usersData, fetchUsersData]);
+    fetchUsersData();
+  }, [fetchUsersData]);
 
   const handleDeleteCustomer = async (u) => {
     if (!u.sheetRow) return;
@@ -82,8 +82,8 @@ export function KhachhangModule() {
       if (typeFilter && type !== typeFilter.toUpperCase()) return false;
 
       if (searchTerm) {
-        const text = `${u.id} ${u.name} ${u.type}`.toLowerCase();
-        if (!text.includes(searchTerm.toLowerCase().trim())) return false;
+        const text = `${u.id || ''} ${u.name || ''} ${u.type || ''}`;
+        if (!matchesSearch(text, searchTerm)) return false;
       }
 
       return true;

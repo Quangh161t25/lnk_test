@@ -7,7 +7,7 @@ import { ExcelUploadModal } from '../../common/ExcelUploadModal';
 import { ColumnManagerModal } from '../../common/ColumnManagerModal';
 import { useColumnManager } from '../../../hooks/useColumnManager';
 import { exportToExcel, downloadModuleTemplate } from '../../../services/excelService';
-import { formatDateVN } from '../../../utils/formatters';
+import { formatDateVN, matchesSearch } from '../../../utils/formatters';
 import { 
   Plus, 
   Upload, 
@@ -58,12 +58,12 @@ export function NhanvienModule() {
   const [editUser, setEditUser] = useState(null);
   const [isExcelModalOpen, setIsExcelModalOpen] = useState(false);
 
-  // Lazy load users data only when authorized admin visits NhanvienModule
+  // Always load fresh users data when authorized admin visits NhanvienModule
   React.useEffect(() => {
-    if ((!usersData || usersData.length === 0) && isAdminSession()) {
+    if (isAdminSession()) {
       fetchUsersData();
     }
-  }, [usersData, isAdminSession, fetchUsersData]);
+  }, [isAdminSession, fetchUsersData]);
 
   const handleDeleteEmployee = async (u) => {
     if (!u.sheetRow) return;
@@ -86,8 +86,8 @@ export function NhanvienModule() {
       if (roleFilter && (u.role || '').toUpperCase() !== roleFilter.toUpperCase()) return false;
 
       if (searchTerm) {
-        const text = `${u.id} ${u.name} ${u.role}`.toLowerCase();
-        if (!text.includes(searchTerm.toLowerCase().trim())) return false;
+        const text = `${u.id || ''} ${u.name || ''} ${u.role || ''}`;
+        if (!matchesSearch(text, searchTerm)) return false;
       }
 
       return true;

@@ -12,7 +12,7 @@ import {
 import { calculateProductAggregates } from '../../../utils/calculations';
 import { exportToExcel } from '../../../services/excelService';
 import { getLocalItem, setLocalItem, STORAGE_KEYS } from '../../../utils/storage';
-import { formatNumber, cleanNumber } from '../../../utils/formatters';
+import { formatNumber, cleanNumber, matchesSearch } from '../../../utils/formatters';
 import { 
   TrendingUp, 
   AlertOctagon, 
@@ -25,7 +25,8 @@ import {
   CalendarClock,
   ArrowRightCircle,
   Sliders,
-  SlidersHorizontal
+  SlidersHorizontal,
+  RotateCw
 } from 'lucide-react';
 
 const DEFAULT_DUBAONHAP_COLUMNS = [
@@ -43,7 +44,7 @@ const DEFAULT_DUBAONHAP_COLUMNS = [
 ];
 
 export function DubaonhapModule({ onNavigate }) {
-  const { productData, xuatData, dukienData, nhapData, transferData, warehouseProductData, fetchModule } = useData();
+  const { productData, xuatData, dukienData, nhapData, transferData, warehouseProductData, fetchModule, loadingModules } = useData();
 
   // Column Manager Hook
   const {
@@ -58,13 +59,35 @@ export function DubaonhapModule({ onNavigate }) {
     resetToDefault
   } = useColumnManager('dubaonhap', DEFAULT_DUBAONHAP_COLUMNS);
 
-  // Lazy load required forecasting data on demand
+  // Always fetch required forecasting data on mount
   React.useEffect(() => {
-    if (!productData || productData.length <= 1) fetchModule('sanpham');
-    if (!xuatData || xuatData.length <= 1) fetchModule('xuat');
-    if (!dukienData || dukienData.length <= 1) fetchModule('dukien');
-    if (!nhapData || nhapData.length <= 1) fetchModule('nhap');
-  }, [productData, xuatData, dukienData, nhapData, fetchModule]);
+    fetchModule('sanpham');
+    fetchModule('xuat');
+    fetchModule('dukien');
+    fetchModule('nhap');
+    fetchModule('sanphamkho');
+    fetchModule('chuyenkho');
+  }, [fetchModule]);
+
+  const handleRefreshAll = async () => {
+    await Promise.all([
+      fetchModule('sanpham', true),
+      fetchModule('xuat', true),
+      fetchModule('dukien', true),
+      fetchModule('nhap', true),
+      fetchModule('sanphamkho', true),
+      fetchModule('chuyenkho', true)
+    ]);
+  };
+
+  const isLoading = Boolean(
+    loadingModules?.sanpham ||
+    loadingModules?.xuat ||
+    loadingModules?.dukien ||
+    loadingModules?.nhap ||
+    loadingModules?.sanphamkho ||
+    loadingModules?.chuyenkho
+  );
 
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL'); // 'ALL' | 'KHAN_CAP' | 'CAN_NHAP' | 'AN_TOAN' | 'THUA_HANG'
@@ -137,8 +160,8 @@ export function DubaonhapModule({ onNavigate }) {
     return forecastList.filter(item => {
       if (statusFilter !== 'ALL' && item.status !== statusFilter) return false;
       if (searchTerm) {
-        const text = `${item.id} ${item.name} ${item.model}`.toLowerCase();
-        if (!text.includes(searchTerm.toLowerCase().trim())) return false;
+        const text = `${item.id || ''} ${item.name || ''} ${item.model || ''}`;
+        if (!matchesSearch(text, searchTerm)) return false;
       }
       return true;
     }).sort((a, b) => {
@@ -291,6 +314,16 @@ export function DubaonhapModule({ onNavigate }) {
             >
               <SlidersHorizontal className="w-3.5 h-3.5 text-slate-600" />
               Cột
+            </button>
+
+            <button
+              onClick={handleRefreshAll}
+              disabled={isLoading}
+              className="px-2.5 py-1.5 bg-slate-100 text-slate-700 font-bold rounded-lg text-xs hover:bg-slate-200 transition flex items-center gap-1.5 disabled:opacity-50"
+              title="Làm mới & đồng bộ số liệu mới nhất từ Google Sheets"
+            >
+              <RotateCw className={`w-3.5 h-3.5 text-slate-600 ${isLoading ? 'animate-spin' : ''}`} />
+              Làm mới
             </button>
           </div>
         </div>

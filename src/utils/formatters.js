@@ -82,3 +82,37 @@ export function generateRandomOrderId(prefix = 'DH') {
   }
   return result;
 }
+
+export function removeVietnameseTones(str) {
+  if (!str) return '';
+  let s = str.toString().toLowerCase();
+  s = s.replace(/à|á|ạ|ả|ã|â|ầ|ấ|ậ|ẩ|ẫ|ă|ằ|ắ|ặ|ẳ|ẵ/g, 'a');
+  s = s.replace(/è|é|ẹ|ẻ|ẽ|ê|ề|ế|ệ|ể|ễ/g, 'e');
+  s = s.replace(/ì|í|ị|ỉ|ĩ/g, 'i');
+  s = s.replace(/ò|ó|ọ|ỏ|õ|ô|ồ|ố|ộ|ổ|ỗ|ơ|ờ|ớ|ợ|ở|ỡ/g, 'o');
+  s = s.replace(/ù|ú|ụ|ủ|ũ|ư|ừ|ứ|ự|ử|ữ/g, 'u');
+  s = s.replace(/ỳ|ý|ỵ|ỷ|ỹ/g, 'y');
+  s = s.replace(/đ/g, 'd');
+  return s.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
+export function matchesSearch(text, query) {
+  if (!query) return true;
+  if (!text) return false;
+  const rawText = text.toString().toLowerCase();
+  const rawQuery = query.toString().toLowerCase().trim();
+  if (rawText.includes(rawQuery)) return true;
+
+  // Compare without spaces, hyphens, and punctuation
+  const strippedText = rawText.replace(/[-_.,/\s()]/g, '');
+  const strippedQuery = rawQuery.replace(/[-_.,/\s()]/g, '');
+  if (strippedQuery && strippedText.includes(strippedQuery)) return true;
+
+  // Compare Vietnamese unaccented
+  const noToneText = removeVietnameseTones(rawText);
+  const noToneQuery = removeVietnameseTones(rawQuery);
+  if (noToneText.includes(noToneQuery)) return true;
+  if (noToneQuery && noToneText.replace(/[-_.,/\s()]/g, '').includes(noToneQuery.replace(/[-_.,/\s()]/g, ''))) return true;
+
+  return false;
+}

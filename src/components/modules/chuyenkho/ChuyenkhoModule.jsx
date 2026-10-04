@@ -7,7 +7,7 @@ import { ExcelUploadModal } from '../../common/ExcelUploadModal';
 import { exportToExcel, downloadModuleTemplate } from '../../../services/excelService';
 import { ColumnManagerModal } from '../../common/ColumnManagerModal';
 import { useColumnManager } from '../../../hooks/useColumnManager';
-import { formatNumber, formatDateVN, parseSimpleSheetDate, cleanNumber } from '../../../utils/formatters';
+import { formatNumber, formatDateVN, parseSimpleSheetDate, cleanNumber, matchesSearch } from '../../../utils/formatters';
 import { 
   Plus, 
   Upload, 
@@ -16,7 +16,8 @@ import {
   Search, 
   ArrowLeftRight, 
   Edit3,
-  SlidersHorizontal 
+  SlidersHorizontal,
+  RotateCw
 } from 'lucide-react';
 
 const DEFAULT_CHUYENKHO_COLUMNS = [
@@ -34,7 +35,7 @@ const DEFAULT_CHUYENKHO_COLUMNS = [
 ];
 
 export function ChuyenkhoModule() {
-  const { transferData, appendRow, updateRow, fetchModule } = useData();
+  const { transferData, appendRow, updateRow, fetchModule, loadingModules } = useData();
   const { getWarehouseOptions } = useSettings();
 
   // Column Manager Hook
@@ -64,12 +65,16 @@ export function ChuyenkhoModule() {
   const [editRow, setEditRow] = useState(null);
   const [isExcelModalOpen, setIsExcelModalOpen] = useState(false);
 
-  // Lazy load chuyenkho data on demand
+  // Always fetch latest chuyenkho data on mount
   React.useEffect(() => {
-    if (!transferData || transferData.length <= 1) {
-      fetchModule('chuyenkho');
-    }
-  }, [transferData, fetchModule]);
+    fetchModule('chuyenkho');
+  }, [fetchModule]);
+
+  const handleRefresh = async () => {
+    await fetchModule('chuyenkho', true);
+  };
+
+  const isLoading = Boolean(loadingModules?.chuyenkho);
 
   const warehouses = getWarehouseOptions();
 
@@ -93,8 +98,8 @@ export function ChuyenkhoModule() {
       if (dateTo && rowDate > new Date(`${dateTo}T23:59:59.999`)) return false;
 
       if (searchTerm) {
-        const text = row.map(c => (c || '').toString()).join(' ').toLowerCase();
-        if (!text.includes(searchTerm.toLowerCase().trim())) return false;
+        const text = row.map(c => (c || '').toString()).join(' ');
+        if (!matchesSearch(text, searchTerm)) return false;
       }
 
       return true;
@@ -210,6 +215,16 @@ export function ChuyenkhoModule() {
             >
               <SlidersHorizontal className="w-3.5 h-3.5 text-slate-500" />
               Cột
+            </button>
+
+            <button
+              onClick={handleRefresh}
+              disabled={isLoading}
+              className="px-2.5 py-1.5 border border-slate-200 text-slate-600 font-bold rounded-lg text-xs hover:bg-slate-50 transition flex items-center gap-1.5 disabled:opacity-50"
+              title="Làm mới & đồng bộ số liệu mới nhất từ Google Sheets"
+            >
+              <RotateCw className={`w-3.5 h-3.5 text-slate-500 ${isLoading ? 'animate-spin' : ''}`} />
+              Làm mới
             </button>
           </div>
         </div>

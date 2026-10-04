@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { CONFIG } from '../config/constants';
 import { SIMPLE_SHEET_MODULES } from '../config/dataSources';
 import { fetchSheetValues, updateSheetRange, appendSheetValues } from '../services/googleSheetsService';
@@ -124,34 +124,46 @@ export function DataProvider({ children }) {
     }
   }, [updateUsers]);
 
+  const inFlightFetches = useRef({});
+
   // Fetch Module Data
-  const fetchModule = useCallback(async (moduleName) => {
+  const fetchModule = useCallback(async (moduleName, force = false) => {
     const config = SIMPLE_SHEET_MODULES[moduleName];
     if (!config) return [];
 
-    setLoadingModules(prev => ({ ...prev, [moduleName]: true }));
-    try {
-      const sheetName = config.sheetName();
-      const rows = await fetchSheetValues(sheetName, config.range);
-      setModuleData(moduleName, rows);
-      setLastSyncedTime(new Date());
-
-      // If CAI_DAT is fetched, apply parsed values to settings and permissions
-      if (moduleName === 'caidat' && rows && rows.length > 1) {
-        const parsed = parseCaiDatRows(rows);
-        if (parsed) {
-          if (parsed.settings && applyParsedSettings) applyParsedSettings(parsed.settings);
-          if (parsed.permissions && applyParsedPermissions) applyParsedPermissions(parsed.permissions);
-        }
-      }
-
-      return rows;
-    } catch (err) {
-      console.error(`Fetch ${moduleName} failed:`, err);
-      return getModuleData(moduleName);
-    } finally {
-      setLoadingModules(prev => ({ ...prev, [moduleName]: false }));
+    if (!force && inFlightFetches.current[moduleName]) {
+      return inFlightFetches.current[moduleName];
     }
+
+    setLoadingModules(prev => ({ ...prev, [moduleName]: true }));
+    const fetchPromise = (async () => {
+      try {
+        const sheetName = config.sheetName();
+        const rows = await fetchSheetValues(sheetName, config.range);
+        setModuleData(moduleName, rows);
+        setLastSyncedTime(new Date());
+
+        // If CAI_DAT is fetched, apply parsed values to settings and permissions
+        if (moduleName === 'caidat' && rows && rows.length > 1) {
+          const parsed = parseCaiDatRows(rows);
+          if (parsed) {
+            if (parsed.settings && applyParsedSettings) applyParsedSettings(parsed.settings);
+            if (parsed.permissions && applyParsedPermissions) applyParsedPermissions(parsed.permissions);
+          }
+        }
+
+        return rows;
+      } catch (err) {
+        console.error(`Fetch ${moduleName} failed:`, err);
+        return getModuleData(moduleName);
+      } finally {
+        delete inFlightFetches.current[moduleName];
+        setLoadingModules(prev => ({ ...prev, [moduleName]: false }));
+      }
+    })();
+
+    inFlightFetches.current[moduleName] = fetchPromise;
+    return fetchPromise;
   }, [applyParsedSettings, applyParsedPermissions]);
 
   // Fetch Essential System Configuration (Home only needs system settings/permissions; business sheets lazy-load on navigation)

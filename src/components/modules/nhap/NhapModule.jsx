@@ -10,7 +10,7 @@ import { OcrOrderModal } from '../../common/OcrOrderModal';
 import { ColumnManagerModal } from '../../common/ColumnManagerModal';
 import { useColumnManager } from '../../../hooks/useColumnManager';
 import { exportToExcel, downloadModuleTemplate } from '../../../services/excelService';
-import { formatNumber, formatCurrency, formatDateVN, parseSimpleSheetDate, cleanNumber } from '../../../utils/formatters';
+import { formatNumber, formatCurrency, formatDateVN, parseSimpleSheetDate, cleanNumber, matchesSearch } from '../../../utils/formatters';
 import { 
   Plus, 
   Upload, 
@@ -23,7 +23,8 @@ import {
   Package,
   Layers,
   Building2,
-  SlidersHorizontal
+  SlidersHorizontal,
+  RotateCw
 } from 'lucide-react';
 
 const DEFAULT_NHAP_COLUMNS = [
@@ -48,7 +49,7 @@ const LOAI_HINH_OPTIONS = [
 ];
 
 export function NhapModule() {
-  const { nhapData, appendRows, updateRow, deleteRow, deleteOrder, fetchModule } = useData();
+  const { nhapData, appendRows, updateRow, deleteRow, deleteOrder, fetchModule, loadingModules } = useData();
   const { currentUser, hasActionPermission, canAccessWarehouse } = useAuth();
   const { getWarehouseOptions } = useSettings();
 
@@ -74,10 +75,16 @@ export function NhapModule() {
   const [partnerFilter, setPartnerFilter] = useState('');
   const [maSpFilter, setMaSpFilter] = useState('');
 
-  // Lazy load nhap data on demand
+  // Always fetch latest nhap data on mount
   React.useEffect(() => {
-    if (!nhapData || nhapData.length <= 1) fetchModule('nhap');
-  }, [nhapData, fetchModule]);
+    fetchModule('nhap');
+  }, [fetchModule]);
+
+  const handleRefresh = async () => {
+    await fetchModule('nhap', true);
+  };
+
+  const isLoading = Boolean(loadingModules?.nhap);
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -197,8 +204,8 @@ export function NhapModule() {
 
       // Search term
       if (searchTerm) {
-        const text = row.map(c => (c || '').toString()).join(' ').toLowerCase();
-        if (!text.includes(searchTerm.toLowerCase().trim())) return false;
+        const text = row.map(c => (c || '').toString()).join(' ');
+        if (!matchesSearch(text, searchTerm)) return false;
       }
 
       return true;
@@ -417,6 +424,16 @@ export function NhapModule() {
             >
               <SlidersHorizontal className="w-3.5 h-3.5 text-slate-500" />
               Cột
+            </button>
+
+            <button
+              onClick={handleRefresh}
+              disabled={isLoading}
+              className="px-2.5 py-1.5 border border-slate-200 text-slate-600 font-bold rounded-lg text-xs hover:bg-slate-50 transition flex items-center gap-1.5 disabled:opacity-50"
+              title="Làm mới & đồng bộ số liệu mới nhất từ Google Sheets"
+            >
+              <RotateCw className={`w-3.5 h-3.5 text-slate-500 ${isLoading ? 'animate-spin' : ''}`} />
+              Làm mới
             </button>
           </div>
         </div>

@@ -7,7 +7,7 @@ import { ExcelUploadModal } from '../../common/ExcelUploadModal';
 import { ColumnManagerModal } from '../../common/ColumnManagerModal';
 import { useColumnManager } from '../../../hooks/useColumnManager';
 import { exportToExcel, downloadModuleTemplate } from '../../../services/excelService';
-import { formatNumber, formatDateVN, parseSimpleSheetDate, cleanNumber } from '../../../utils/formatters';
+import { formatNumber, formatDateVN, parseSimpleSheetDate, cleanNumber, matchesSearch } from '../../../utils/formatters';
 import { 
   Plus, 
   Upload, 
@@ -16,7 +16,8 @@ import {
   Search, 
   Building2, 
   Edit3,
-  SlidersHorizontal 
+  SlidersHorizontal,
+  RotateCw
 } from 'lucide-react';
 
 const DEFAULT_TON_NPP_COLUMNS = [
@@ -30,7 +31,7 @@ const DEFAULT_TON_NPP_COLUMNS = [
 ];
 
 export function TonNppModule() {
-  const { tonNppData, appendRow, updateRow, fetchModule, getProductNameById } = useData();
+  const { tonNppData, appendRow, updateRow, fetchModule, getProductNameById, loadingModules } = useData();
   const { currentUser, resolveRoleKey, usersData } = useAuth();
 
   // Column Manager Hook
@@ -58,12 +59,16 @@ export function TonNppModule() {
   const [editRow, setEditRow] = useState(null);
   const [isExcelModalOpen, setIsExcelModalOpen] = useState(false);
 
-  // Lazy load ton_npp data on demand
+  // Always fetch latest ton_npp data on mount
   React.useEffect(() => {
-    if (!tonNppData || tonNppData.length <= 1) {
-      fetchModule('ton_npp');
-    }
-  }, [tonNppData, fetchModule]);
+    fetchModule('ton_npp');
+  }, [fetchModule]);
+
+  const handleRefresh = async () => {
+    await fetchModule('ton_npp', true);
+  };
+
+  const isLoading = Boolean(loadingModules?.ton_npp);
 
   const roleKey = currentUser ? resolveRoleKey(currentUser.role) : '';
 
@@ -92,8 +97,8 @@ export function TonNppModule() {
       if (dateTo && rowDate > new Date(`${dateTo}T23:59:59.999`)) return false;
 
       if (searchTerm) {
-        const text = row.map(c => (c || '').toString()).join(' ').toLowerCase();
-        if (!text.includes(searchTerm.toLowerCase().trim())) return false;
+        const text = row.map(c => (c || '').toString()).join(' ');
+        if (!matchesSearch(text, searchTerm)) return false;
       }
 
       return true;
@@ -211,6 +216,16 @@ export function TonNppModule() {
             >
               <SlidersHorizontal className="w-3.5 h-3.5 text-slate-500" />
               Cột
+            </button>
+
+            <button
+              onClick={handleRefresh}
+              disabled={isLoading}
+              className="px-2.5 py-1.5 border border-slate-200 text-slate-600 font-bold rounded-lg text-xs hover:bg-slate-50 transition flex items-center gap-1.5 disabled:opacity-50"
+              title="Làm mới & đồng bộ số liệu mới nhất từ Google Sheets"
+            >
+              <RotateCw className={`w-3.5 h-3.5 text-slate-500 ${isLoading ? 'animate-spin' : ''}`} />
+              Làm mới
             </button>
           </div>
         </div>

@@ -63,8 +63,16 @@ export function Header({ activeModule, onToggleSidebar, onNavigate }) {
     try {
       if (activeModule === 'home') {
         await fetchAllData();
+      } else if (activeModule === 'doisoat' || activeModule === 'sanpham' || activeModule === 'sanphamkho' || activeModule === 'dubaonhap') {
+        await Promise.all([
+          fetchModule(activeModule, true),
+          fetchModule('sanphamkho', true),
+          fetchModule('nhap', true),
+          fetchModule('xuat', true),
+          fetchModule('chuyenkho', true)
+        ]);
       } else {
-        await fetchModule(activeModule);
+        await fetchModule(activeModule, true);
       }
     } catch (e) {
       console.error("Refresh error:", e);

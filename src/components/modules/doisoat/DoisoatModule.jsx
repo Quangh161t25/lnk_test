@@ -8,7 +8,7 @@ import { ColumnManagerModal } from '../../common/ColumnManagerModal';
 import { useColumnManager } from '../../../hooks/useColumnManager';
 import { exportToExcel, downloadModuleTemplate } from '../../../services/excelService';
 import { calculateProductAggregates } from '../../../utils/calculations';
-import { formatNumber, cleanNumber } from '../../../utils/formatters';
+import { formatNumber, cleanNumber, matchesSearch } from '../../../utils/formatters';
 import { 
   Plus, 
   Upload, 
@@ -21,7 +21,8 @@ import {
   AlertTriangle,
   ArrowUpRight,
   ArrowDownRight,
-  SlidersHorizontal
+  SlidersHorizontal,
+  RotateCw
 } from 'lucide-react';
 
 const DEFAULT_DOISOAT_COLUMNS = [
@@ -60,14 +61,24 @@ export function DoisoatModule() {
   const [editRow, setEditRow] = useState(null);
   const [isExcelModalOpen, setIsExcelModalOpen] = useState(false);
 
-  // Lazy load doisoat and inventory transactions to compute live ERP stock
+  // Always fetch latest reconciliation & inventory transaction data on mount
   React.useEffect(() => {
-    if (!doisoatData || doisoatData.length <= 1) fetchModule('doisoat');
-    if (!warehouseProductData || warehouseProductData.length <= 1) fetchModule('sanphamkho');
-    if (!nhapData || nhapData.length <= 1) fetchModule('nhap');
-    if (!xuatData || xuatData.length <= 1) fetchModule('xuat');
-    if (!transferData || transferData.length <= 1) fetchModule('chuyenkho');
-  }, [doisoatData, warehouseProductData, nhapData, xuatData, transferData, fetchModule]);
+    fetchModule('doisoat');
+    fetchModule('sanphamkho');
+    fetchModule('nhap');
+    fetchModule('xuat');
+    fetchModule('chuyenkho');
+  }, [fetchModule]);
+
+  const handleRefreshAll = async () => {
+    await Promise.all([
+      fetchModule('doisoat', true),
+      fetchModule('sanphamkho', true),
+      fetchModule('nhap', true),
+      fetchModule('xuat', true),
+      fetchModule('chuyenkho', true)
+    ]);
+  };
 
   const isLoading = Boolean(
     loadingModules?.doisoat || 
@@ -119,8 +130,8 @@ export function DoisoatModule() {
       if (diffFilter === 'DEFICIT' && diff >= 0) return false;
 
       if (searchTerm) {
-        const text = `${row[0]} ${row[1]}`.toLowerCase();
-        if (!text.includes(searchTerm.toLowerCase().trim())) return false;
+        const text = `${row[0] || ''} ${row[1] || ''}`;
+        if (!matchesSearch(text, searchTerm)) return false;
       }
 
       return true;
@@ -245,6 +256,16 @@ export function DoisoatModule() {
             >
               <SlidersHorizontal className="w-3.5 h-3.5 text-slate-600" />
               Cột
+            </button>
+
+            <button
+              onClick={handleRefreshAll}
+              disabled={isLoading}
+              className="px-2.5 py-1.5 bg-slate-100 text-slate-700 font-bold rounded-lg text-xs hover:bg-slate-200 transition flex items-center gap-1.5 disabled:opacity-50"
+              title="Làm mới & đồng bộ số liệu mới nhất từ Google Sheets"
+            >
+              <RotateCw className={`w-3.5 h-3.5 text-slate-600 ${isLoading ? 'animate-spin' : ''}`} />
+              Làm mới
             </button>
           </div>
         </div>

@@ -9,7 +9,7 @@ import { ColumnManagerModal } from '../../common/ColumnManagerModal';
 import { useColumnManager } from '../../../hooks/useColumnManager';
 import { exportToExcel, downloadModuleTemplate } from '../../../services/excelService';
 import { calculateProductAggregates } from '../../../utils/calculations';
-import { formatNumber, formatCurrency, cleanNumber } from '../../../utils/formatters';
+import { formatNumber, formatCurrency, cleanNumber, matchesSearch } from '../../../utils/formatters';
 import { 
   Plus, 
   Upload, 
@@ -21,7 +21,8 @@ import {
   Trash2,
   ExternalLink,
   ImageIcon,
-  SlidersHorizontal
+  SlidersHorizontal,
+  RotateCw
 } from 'lucide-react';
 
 const DEFAULT_SANPHAM_COLUMNS = [
@@ -37,7 +38,7 @@ const DEFAULT_SANPHAM_COLUMNS = [
 ];
 
 export function SanphamModule({ onNavigateWithFilter }) {
-  const { productData, nhapData, xuatData, transferData, warehouseProductData, appendRow, updateRow, deleteRow, fetchModule } = useData();
+  const { productData, nhapData, xuatData, transferData, warehouseProductData, appendRow, updateRow, deleteRow, fetchModule, loadingModules } = useData();
   const { currentUser, hasActionPermission, getHiddenProductIds, resolveRoleKey } = useAuth();
   const { appSettings } = useSettings();
 
@@ -65,14 +66,32 @@ export function SanphamModule({ onNavigateWithFilter }) {
   const [editRow, setEditRow] = useState(null);
   const [isExcelModalOpen, setIsExcelModalOpen] = useState(false);
 
-  // Lazy load product & transaction data on demand
+  // Always fetch latest product & transaction data on mount
   React.useEffect(() => {
-    if (!productData || productData.length <= 1) fetchModule('sanpham');
-    if (!warehouseProductData || warehouseProductData.length <= 1) fetchModule('sanphamkho');
-    if (!nhapData || nhapData.length <= 1) fetchModule('nhap');
-    if (!xuatData || xuatData.length <= 1) fetchModule('xuat');
-    if (!transferData || transferData.length <= 1) fetchModule('chuyenkho');
-  }, [productData, warehouseProductData, nhapData, xuatData, transferData, fetchModule]);
+    fetchModule('sanpham');
+    fetchModule('sanphamkho');
+    fetchModule('nhap');
+    fetchModule('xuat');
+    fetchModule('chuyenkho');
+  }, [fetchModule]);
+
+  const handleRefreshAll = async () => {
+    await Promise.all([
+      fetchModule('sanpham', true),
+      fetchModule('sanphamkho', true),
+      fetchModule('nhap', true),
+      fetchModule('xuat', true),
+      fetchModule('chuyenkho', true)
+    ]);
+  };
+
+  const isLoading = Boolean(
+    loadingModules?.sanpham ||
+    loadingModules?.sanphamkho ||
+    loadingModules?.nhap ||
+    loadingModules?.xuat ||
+    loadingModules?.chuyenkho
+  );
 
   const aggregates = useMemo(() => {
     return calculateProductAggregates(nhapData, xuatData, transferData, warehouseProductData);
@@ -172,8 +191,8 @@ export function SanphamModule({ onNavigateWithFilter }) {
       if (stockFilter === 'IN_STOCK' && tonCuoi <= 0) return false;
 
       if (searchTerm) {
-        const text = `${row[0]} ${row[1]} ${row[2]} ${row[5]}`.toLowerCase();
-        if (!text.includes(searchTerm.toLowerCase().trim())) return false;
+        const text = `${row[0] || ''} ${row[1] || ''} ${row[2] || ''} ${row[5] || ''}`;
+        if (!matchesSearch(text, searchTerm)) return false;
       }
 
       return true;
@@ -327,6 +346,16 @@ export function SanphamModule({ onNavigateWithFilter }) {
             >
               <SlidersHorizontal className="w-3.5 h-3.5 text-slate-500" />
               Cột
+            </button>
+
+            <button
+              onClick={handleRefreshAll}
+              disabled={isLoading}
+              className="px-2.5 py-1.5 border border-slate-200 text-slate-600 font-bold rounded-lg text-xs hover:bg-slate-50 transition flex items-center gap-1.5 disabled:opacity-50"
+              title="Làm mới & đồng bộ số liệu mới nhất từ Google Sheets"
+            >
+              <RotateCw className={`w-3.5 h-3.5 text-slate-500 ${isLoading ? 'animate-spin' : ''}`} />
+              Làm mới
             </button>
           </div>
         </div>
