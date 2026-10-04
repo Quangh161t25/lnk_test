@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Drawer } from '../../common/Drawer';
 import { ProductSearchCell } from '../../common/ProductSearchCell';
 import { useAuth } from '../../../context/AuthContext';
