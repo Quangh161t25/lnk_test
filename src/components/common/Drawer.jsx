@@ -6,7 +6,9 @@ export function Drawer({
   onClose, 
   title, 
   children, 
-  maxWidth = 'max-w-2xl',
+  maxWidth,
+  width,
+  contentClassName = 'flex-1 overflow-y-auto p-6 space-y-4',
   confirmOnClose = false,
   confirmMessage = 'Bạn có chắc chắn muốn hủy bỏ? Các thông tin đang nhập sẽ không được lưu.'
 }) {
@@ -32,6 +34,9 @@ export function Drawer({
 
   if (!isOpen) return null;
 
+  const effectiveWidth = (width || maxWidth || 'max-w-2xl').trim();
+  const widthClasses = effectiveWidth.includes('w-') ? effectiveWidth : `w-full ${effectiveWidth}`;
+
   return (
     <div className="fixed inset-0 z-50 overflow-hidden flex justify-end">
       {/* Backdrop */}
@@ -42,7 +47,7 @@ export function Drawer({
 
       {/* Panel */}
       <div
-        className={`relative w-full ${maxWidth} bg-white shadow-2xl z-10 flex flex-col h-full transform transition-transform duration-300 ease-in-out`}
+        className={`relative ${widthClasses} bg-white shadow-2xl z-10 flex flex-col h-full transform transition-transform duration-300 ease-in-out`}
       >
         {/* Header */}
         <div className="h-16 px-6 border-b border-slate-100 flex items-center justify-between shrink-0 bg-slate-50/70">
@@ -58,7 +63,7 @@ export function Drawer({
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-4">
+        <div className={contentClassName}>
           {children}
         </div>
       </div>

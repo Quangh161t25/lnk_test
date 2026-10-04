@@ -445,11 +445,12 @@ export function LenDonDrawer({
       isOpen={isOpen}
       onClose={onClose}
       title={isEditing ? `Chỉnh sửa Đơn hàng: ${mdh}` : "Tạo Đơn Hàng Mới (Lên Đơn)"}
-      width="w-full max-w-4xl"
+      width="w-full max-w-[96vw] lg:max-w-6xl xl:max-w-7xl 2xl:max-w-[1500px]"
+      contentClassName="flex-1 overflow-hidden flex flex-col"
     >
       <div className="flex flex-col h-full bg-slate-50 text-xs">
         {/* Form Body */}
-        <div className="p-4 space-y-4 flex-1 overflow-y-auto">
+        <div className="p-4 sm:p-5 space-y-4 flex-1 overflow-y-auto">
           {/* Header Info Banner */}
           <div className="bg-amber-50/80 border border-amber-200/80 rounded-xl p-3 flex items-center justify-between text-amber-900">
             <div className="flex items-center gap-2">
@@ -634,17 +635,17 @@ export function LenDonDrawer({
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
                   <tr className="bg-slate-50 text-slate-600 font-bold border-b border-slate-200 text-[11px]">
-                    <th className="py-2 px-2.5 w-10 text-center">STT</th>
-                    <th className="py-2 px-2.5 w-44">Mã SP <span className="text-red-500">*</span></th>
-                    <th className="py-2 px-2.5 min-w-[160px]">Tên sản phẩm</th>
-                    <th className="py-2 px-2.5 w-20 text-right">Tồn kho</th>
-                    <th className="py-2 px-2.5 w-20 text-right">SLG <span className="text-red-500">*</span></th>
-                    <th className="py-2 px-2.5 w-32 text-right">
+                    <th className="py-2.5 px-3 w-10 text-center">STT</th>
+                    <th className="py-2.5 px-3 w-48 sm:w-56">Mã SP <span className="text-red-500">*</span></th>
+                    <th className="py-2.5 px-3 min-w-[200px]">Tên sản phẩm</th>
+                    <th className="py-2.5 px-3 w-24 text-right">Tồn kho</th>
+                    <th className="py-2.5 px-3 w-24 text-right">SLG <span className="text-red-500">*</span></th>
+                    <th className="py-2.5 px-3 w-36 text-right">
                       Đơn giá (CN Giá)
                     </th>
-                    <th className="py-2 px-2.5 w-32 text-right">Thành tiền</th>
-                    <th className="py-2 px-2.5 w-28">Kho</th>
-                    <th className="py-2 px-2.5 w-10 text-center"></th>
+                    <th className="py-2.5 px-3 w-36 text-right">Thành tiền</th>
+                    <th className="py-2.5 px-3 w-32">Kho</th>
+                    <th className="py-2.5 px-3 w-10 text-center"></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -655,10 +656,10 @@ export function LenDonDrawer({
 
                     return (
                       <tr key={idx} className="hover:bg-slate-50/60 transition group">
-                        <td className="py-2 px-2.5 text-center text-slate-400 font-medium">
+                        <td className="py-2.5 px-3 text-center text-slate-400 font-medium">
                           {idx + 1}
                         </td>
-                        <td className="py-2 px-2.5">
+                        <td className="py-2.5 px-3">
                           <ProductSearchCell
                             value={it.idSp}
                             onChange={(val) => handleProductChange(idx, val)}
@@ -667,7 +668,7 @@ export function LenDonDrawer({
                             placeholder="Mã SP..."
                           />
                         </td>
-                        <td className="py-2 px-2.5">
+                        <td className="py-2.5 px-3">
                           <input
                             type="text"
                             value={it.tenSp}
@@ -677,10 +678,10 @@ export function LenDonDrawer({
                               setItems(next);
                             }}
                             placeholder="Tên sản phẩm..."
-                            className="w-full px-2 py-1 border border-slate-200 rounded-md text-xs font-medium text-slate-700 focus:ring-1 focus:ring-blue-500 outline-none bg-slate-50/50"
+                            className="w-full px-2 py-1.5 border border-slate-200 rounded-md text-xs font-medium text-slate-700 focus:ring-1 focus:ring-blue-500 outline-none bg-slate-50/50"
                           />
                         </td>
-                        <td className="py-2 px-2.5 text-right font-medium">
+                        <td className="py-2.5 px-3 text-right font-medium">
                           <span className={`px-1.5 py-0.5 rounded text-[11px] font-bold ${
                             isOutOfStock 
                               ? 'bg-rose-100 text-rose-700' 
@@ -691,22 +692,22 @@ export function LenDonDrawer({
                             {formatNumber(currentStock)}
                           </span>
                         </td>
-                        <td className="py-2 px-2.5 text-right">
+                        <td className="py-2.5 px-3 text-right">
                           <input
                             type="number"
                             min="1"
                             value={it.slg}
                             onChange={(e) => handleQtyChange(idx, e.target.value)}
-                            className="w-full px-2 py-1 border border-slate-200 rounded-md text-xs font-bold text-right text-blue-700 focus:ring-1 focus:ring-blue-500 outline-none"
+                            className="w-full px-2 py-1.5 border border-slate-200 rounded-md text-xs font-bold text-right text-blue-700 focus:ring-1 focus:ring-blue-500 outline-none"
                           />
                         </td>
-                        <td className="py-2 px-2.5 text-right">
+                        <td className="py-2.5 px-3 text-right">
                           <input
                             type="number"
                             min="0"
                             value={it.donGia}
                             onChange={(e) => handlePriceChange(idx, e.target.value)}
-                            className="w-full px-2 py-1 border border-slate-200 rounded-md text-xs font-bold text-right text-emerald-700 focus:ring-1 focus:ring-blue-500 outline-none"
+                            className="w-full px-2 py-1.5 border border-slate-200 rounded-md text-xs font-bold text-right text-emerald-700 focus:ring-1 focus:ring-blue-500 outline-none"
                           />
                           {it.priceSource && (
                             <div className="text-[10px] text-slate-400 font-normal mt-0.5 truncate text-right" title={it.priceSource}>
@@ -714,21 +715,21 @@ export function LenDonDrawer({
                             </div>
                           )}
                         </td>
-                        <td className="py-2 px-2.5 text-right font-bold text-slate-800">
+                        <td className="py-2.5 px-3 text-right font-bold text-slate-800">
                           {formatCurrency(it.thanhTien || 0)}
                         </td>
-                        <td className="py-2 px-2.5">
+                        <td className="py-2.5 px-3">
                           <select
                             value={it.kho || kho}
                             onChange={(e) => handleItemKhoChange(idx, e.target.value)}
-                            className="w-full px-2 py-1 border border-slate-200 rounded-md text-xs font-medium bg-white focus:ring-1 focus:ring-blue-500 outline-none"
+                            className="w-full px-2 py-1.5 border border-slate-200 rounded-md text-xs font-medium bg-white focus:ring-1 focus:ring-blue-500 outline-none"
                           >
                             {getWarehouseOptions().map(k => (
                               <option key={k} value={k}>{k}</option>
                             ))}
                           </select>
                         </td>
-                        <td className="py-2 px-2.5 text-center">
+                        <td className="py-2.5 px-3 text-center">
                           <button
                             type="button"
                             onClick={() => removeItemRow(idx)}
