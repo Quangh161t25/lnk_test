@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { CONFIG } from '../config/constants';
 import { SIMPLE_SHEET_MODULES } from '../config/dataSources';
 import { fetchSheetValues, fetchAggregates, updateSheetRange, appendSheetValues } from '../services/googleSheetsService';
