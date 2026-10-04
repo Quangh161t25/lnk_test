@@ -38,6 +38,11 @@ export function downloadModuleTemplate(moduleName) {
     sampleRows = [
       ['GIA-001', '05/10/2026', 'LM-LK-6201A', 'Chảo cạn Titanium Lock&King 28cm', 120000, 185000, 175000, 10000, 'Kế toán', 'Điều chỉnh giá bán tháng 10', 'Áp dụng']
     ];
+  } else if (moduleName === 'lendon') {
+    headers = ['id', 'ngay', 'truong', 'mdh', 'ma_kh', 'ten_khach', 'id_sp', 'ten_sp', 'slg', 'don_gia', 'thanh_tien', 'kho', 'id_nv_len_don', 'ghi_chu', 'loai_hinh', 'slg_thuc_te', 'trang_thai'];
+    sampleRows = [
+      ['LD-001-1', '05/10/2026', 'LÊN ĐƠN', 'LD0001', 'KH00206', 'Anh Tài Oline', 'LM-LK-6201A', 'Nồi lẩu hấp điện kèm xửng hấp Lock&King LK-6201A', 10, 185000, 1850000, 'KHO 1', 'NV01', 'Đơn đặt hàng online', 'Thường', 10, 'Chờ xuất']
+    ];
   } else if (SIMPLE_SHEET_MODULES[moduleName]) {
     headers = [...SIMPLE_SHEET_MODULES[moduleName].columns];
   } else if (moduleName === 'nhanvien') {

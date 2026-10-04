@@ -16,6 +16,7 @@ import { ChuyenkhoModule } from './components/modules/chuyenkho/ChuyenkhoModule'
 import { SanphamModule } from './components/modules/sanpham/SanphamModule';
 import { SanphamkhoModule } from './components/modules/sanphamkho/SanphamkhoModule';
 import { CngiaspModule } from './components/modules/cngiasp/CngiaspModule';
+import { LenDonModule } from './components/modules/lendon/LenDonModule';
 import { TonNppModule } from './components/modules/ton_npp/TonNppModule';
 import { DoisoatModule } from './components/modules/doisoat/DoisoatModule';
 import { NhanvienModule } from './components/modules/nhanvien/NhanvienModule';
@@ -25,7 +26,7 @@ import { CaidatModule } from './components/modules/caidat/CaidatModule';
 
 const VALID_MODULES = [
   'home', 'tongquan', 'nhap', 'dukien', 'xuat', 'chuyenkho', 'sanpham',
-  'sanphamkho', 'cngiasp', 'ton_npp', 'doisoat', 'nhanvien', 'khachhang',
+  'sanphamkho', 'cngiasp', 'lendon', 'ton_npp', 'doisoat', 'nhanvien', 'khachhang',
   'dubaonhap', 'caidat'
 ];
 
@@ -152,6 +153,7 @@ export function App() {
           )}
 
           {activeModule === 'cngiasp' && <CngiaspModule />}
+          {activeModule === 'lendon' && <LenDonModule />}
 
           {activeModule === 'ton_npp' && <TonNppModule />}
 

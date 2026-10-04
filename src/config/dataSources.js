@@ -55,6 +55,12 @@ export const SIMPLE_SHEET_MODULES = {
     cacheKey: 'erp_cngiasp_cache',
     columns: ['id', 'ngay_cap_nhat', 'ma_sp', 'ten_sp', 'gia_nhap', 'gia_ban', 'gia_cu', 'chenh_lech', 'nguoi_cap_nhat', 'ghi_chu', 'trang_thai']
   },
+  lendon: {
+    sheetName: () => CONFIG.lenDonSheetName || 'LEN_DON',
+    range: 'A1:Q60000',
+    cacheKey: 'erp_lendon_cache',
+    columns: ['id', 'ngay', 'truong', 'mdh', 'ma_kh', 'ten_khach', 'id_sp', 'ten_sp', 'slg', 'don_gia', 'thanh_tien', 'kho', 'id_nv_len_don', 'ghi_chu', 'loai_hinh', 'slg_thuc_te', 'trang_thai']
+  },
   caidat: {
     sheetName: () => CONFIG.caiDatSheetName || 'CAI_DAT',
     range: 'A1:H1000',

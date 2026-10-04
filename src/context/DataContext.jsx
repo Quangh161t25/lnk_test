@@ -4,7 +4,7 @@ import { SIMPLE_SHEET_MODULES } from '../config/dataSources';
 import { fetchSheetValues, fetchAggregates, updateSheetRange, appendSheetValues } from '../services/googleSheetsService';
 import { parseCaiDatRows, saveCaiDatToGoogleSheet, buildCaiDatRows } from '../services/caiDatService';
 import { getLocalItem, setLocalItem, STORAGE_KEYS } from '../utils/storage';
-import { cleanNumber, normalizeLoginValue } from '../utils/formatters';
+import { cleanNumber, normalizeLoginValue, parseSimpleSheetDate } from '../utils/formatters';
 import { useAuth } from './AuthContext';
 import { useSettings } from './SettingsContext';
 
@@ -23,6 +23,7 @@ export function DataProvider({ children }) {
   const [tonNppData, setTonNppData] = useState(() => getLocalItem(STORAGE_KEYS.TON_NPP_CACHE, []));
   const [doisoatData, setDoisoatData] = useState(() => getLocalItem(STORAGE_KEYS.RECONCILIATION_CACHE, []));
   const [cngiaspData, setCngiaspData] = useState(() => getLocalItem(STORAGE_KEYS.CNGIASP_CACHE, []));
+  const [lenDonData, setLenDonData] = useState(() => getLocalItem(STORAGE_KEYS.LENDON_CACHE, []));
   const [caidatData, setCaidatData] = useState(() => getLocalItem(STORAGE_KEYS.CAIDAT_CACHE, []));
   const [aggregatesData, setAggregatesData] = useState(() => getLocalItem('lnk_aggregates_cache', {}));
   const [nppProductIdsData, setNppProductIdsData] = useState(() => getLocalItem('lnk_npp_products_cache', []));
@@ -70,6 +71,10 @@ export function DataProvider({ children }) {
         setCngiaspData(data);
         setLocalItem(STORAGE_KEYS.CNGIASP_CACHE, data);
         break;
+      case 'lendon':
+        setLenDonData(data);
+        setLocalItem(STORAGE_KEYS.LENDON_CACHE, data);
+        break;
       case 'caidat':
         setCaidatData(data);
         setLocalItem(STORAGE_KEYS.CAIDAT_CACHE, data);
@@ -90,6 +95,7 @@ export function DataProvider({ children }) {
       case 'ton_npp': return tonNppData;
       case 'doisoat': return doisoatData;
       case 'cngiasp': return cngiaspData;
+      case 'lendon': return lenDonData;
       case 'caidat': return caidatData;
       default: return [];
     }
@@ -344,6 +350,38 @@ export function DataProvider({ children }) {
     return found ? found.name : id;
   }, [getProductMap]);
 
+  // Map of latest price from CN GIÁ SP for each product
+  const getLatestPriceMap = useCallback(() => {
+    const map = new Map();
+    const rows = (cngiaspData || []).slice(1);
+    const sorted = [...rows].sort((a, b) => {
+      const dateA = parseSimpleSheetDate(a[1]);
+      const dateB = parseSimpleSheetDate(b[1]);
+      const timeA = Number.isNaN(dateA.getTime()) ? 0 : dateA.getTime();
+      const timeB = Number.isNaN(dateB.getTime()) ? 0 : dateB.getTime();
+      if (timeB !== timeA) return timeB - timeA;
+      return (b._sheetRow || 0) - (a._sheetRow || 0);
+    });
+
+    for (const r of sorted) {
+      const maSp = (r[2] || '').toString().trim().toUpperCase();
+      if (maSp && !map.has(maSp)) {
+        map.set(maSp, {
+          maSp,
+          tenSp: (r[3] || '').toString().trim(),
+          giaNhap: cleanNumber(r[4]) || 0,
+          giaBan: cleanNumber(r[5]) || 0,
+          giaCu: cleanNumber(r[6]) || 0,
+          chenhLech: cleanNumber(r[7]) || 0,
+          nguoiCapNhat: (r[8] || '').toString().trim(),
+          ngayCapNhat: (r[1] || '').toString().trim(),
+          trangThai: (r[10] || '').toString().trim()
+        });
+      }
+    }
+    return map;
+  }, [cngiaspData]);
+
   return (
     <DataContext.Provider
       value={{
@@ -356,6 +394,7 @@ export function DataProvider({ children }) {
         tonNppData,
         doisoatData,
         cngiaspData,
+        lenDonData,
         caidatData,
         aggregatesData,
         nppProductIdsData,
@@ -376,7 +415,8 @@ export function DataProvider({ children }) {
         upsertUser,
         deleteUser,
         getProductMap,
-        getProductNameById
+        getProductNameById,
+        getLatestPriceMap
       }}
     >
       {children}

@@ -11,6 +11,7 @@ export const STORAGE_KEYS = {
   TON_NPP_CACHE: 'erp_ton_npp_cache',
   RECONCILIATION_CACHE: 'erp_reconciliation_cache',
   CNGIASP_CACHE: 'erp_cngiasp_cache',
+  LENDON_CACHE: 'erp_lendon_cache',
   USERS_CACHE: 'erp_users_cache',
   FORECAST_PARAMS: 'erp_forecast_params',
   CAIDAT_CACHE: 'erp_caidat_cache'

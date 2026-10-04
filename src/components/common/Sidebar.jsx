@@ -19,6 +19,7 @@ import {
   Settings,
   BarChart3,
   BadgePercent,
+  ShoppingCart,
   ChevronLeft,
   ChevronRight
 } from 'lucide-react';
@@ -33,6 +34,7 @@ const ICON_MAP = {
   Package,
   Warehouse,
   BadgePercent,
+  ShoppingCart,
   Building2,
   Scale,
   Users,

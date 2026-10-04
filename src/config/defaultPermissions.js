@@ -10,6 +10,7 @@ export const DEFAULT_PERMISSIONS = {
     sanpham: "Danh sách sản phẩm",
     sanphamkho: "Danh sách sản phẩm kho",
     cngiasp: "CN Giá SP",
+    lendon: "Lên đơn",
     ton_npp: "Tồn NPP",
     doisoat: "Đối soát",
     nhanvien: "Danh sách nhân viên",
@@ -20,25 +21,25 @@ export const DEFAULT_PERMISSIONS = {
   roles: {
     ADMIN: {
       modules: [
-        "home", "tongquan", "nhap", "dukien", "xuat", "chuyenkho", "sanpham", "sanphamkho", "cngiasp",
+        "home", "tongquan", "nhap", "dukien", "xuat", "chuyenkho", "sanpham", "sanphamkho", "cngiasp", "lendon",
         "ton_npp", "doisoat", "nhanvien", "khachhang", "dubaonhap", "caidat"
       ],
       actions: [
         "nx.manualAdd", "nx.upload", "nx.confirmWarehouse", "nx.delete",
-        "sanpham.manage", "cngiasp.manage", "doisoat.manage", "caidat.manage"
+        "sanpham.manage", "cngiasp.manage", "lendon.manage", "doisoat.manage", "caidat.manage"
       ]
     },
     KT: {
       modules: [
-        "home", "tongquan", "nhap", "dukien", "xuat", "chuyenkho", "sanpham", "sanphamkho", "cngiasp", "ton_npp", "doisoat"
+        "home", "tongquan", "nhap", "dukien", "xuat", "chuyenkho", "sanpham", "sanphamkho", "cngiasp", "lendon", "ton_npp", "doisoat"
       ],
       actions: [
-        "nx.upload", "cngiasp.manage", "doisoat.manage"
+        "nx.upload", "cngiasp.manage", "lendon.manage", "doisoat.manage"
       ]
     },
     KHO: {
       modules: [
-        "home", "tongquan", "nhap", "dukien", "xuat", "chuyenkho", "sanphamkho", "ton_npp"
+        "home", "tongquan", "nhap", "dukien", "xuat", "chuyenkho", "sanphamkho", "lendon", "ton_npp"
       ],
       actions: [
         "nx.confirmWarehouse"
@@ -46,34 +47,40 @@ export const DEFAULT_PERMISSIONS = {
     },
     NPP: {
       modules: [
-        "sanpham", "xuat", "ton_npp"
+        "sanpham", "xuat", "lendon", "ton_npp"
       ],
       actions: []
     },
     KD: {
       modules: [
-        "home", "tongquan", "sanpham", "ton_npp"
+        "home", "tongquan", "sanpham", "lendon", "ton_npp"
       ],
-      actions: []
+      actions: [
+        "lendon.manage"
+      ]
     },
     NVKD: {
       modules: [
-        "home", "tongquan", "sanpham", "ton_npp"
+        "home", "tongquan", "sanpham", "lendon", "ton_npp"
       ],
-      actions: []
+      actions: [
+        "lendon.manage"
+      ]
     }
   },
   dataScopes: {
     NPP: {
       sanpham: "Chỉ xem Ảnh, ID, Tên SP, Tồn cuối của ID SP đã xuất trong XUAT_CT theo ma_kh bằng id tài khoản",
       xuat: "Chỉ xem đơn xuất trong XUAT_CT theo ma_kh bằng id tài khoản",
+      lendon: "Chỉ xem đơn lên trong LEN_DON theo ma_kh bằng id tài khoản",
       ton_npp: "Chỉ xem dữ liệu trong TON_NPP theo ma_kh bằng id tài khoản"
     },
     KD: {
       sanpham: "Xem ID, Ten SP, Ton cuoi tong"
     },
     NVKD: {
-      nx: "Chỉ xem dữ liệu theo id_nv/nhân viên bằng id tài khoản"
+      nx: "Chỉ xem dữ liệu theo id_nv/nhân viên bằng id tài khoản",
+      lendon: "Chỉ xem đơn lên theo id_nv_len_don bằng id tài khoản"
     }
   },
   userRestrictions: {
