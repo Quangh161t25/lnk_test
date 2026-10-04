@@ -30,7 +30,8 @@ import {
   TrendingUp,
   TrendingDown,
   Tag,
-  DollarSign
+  DollarSign,
+  ShoppingCart
 } from 'lucide-react';
 
 const DEFAULT_CNGIASP_COLUMNS = [
@@ -48,7 +49,17 @@ const DEFAULT_CNGIASP_COLUMNS = [
 ];
 
 export function CngiaspModule() {
-  const { cngiaspData, appendRow, appendRows, updateRow, deleteRow, fetchModule, loadingModules } = useData();
+  const { 
+    cngiaspData, 
+    appendRow, 
+    appendRows, 
+    updateRow, 
+    deleteRow, 
+    fetchModule, 
+    loadingModules,
+    syncProductPriceToLenDon,
+    syncAllPricesToLenDon
+  } = useData();
   const { currentUser, hasActionPermission } = useAuth();
 
   // Column Manager Hook
@@ -152,7 +163,14 @@ export function CngiaspModule() {
       } else {
         await appendRow('cngiasp', rowValues);
       }
-      await fetchModule('cngiasp');
+      await fetchModule('cngiasp', true);
+
+      // Tự động cập nhật lại giá cho các đơn hàng trong module Lên đơn
+      const targetMaSp = rowValues[2];
+      const syncRes = await syncProductPriceToLenDon(targetMaSp);
+      if (syncRes && syncRes.updatedCount > 0) {
+        alert(`Đã lưu bảng giá và tự động cập nhật lại đơn giá (${formatCurrency(syncRes.newPrice)}) cho ${syncRes.updatedCount} dòng đơn hàng trong module Lên đơn.`);
+      }
     } catch (err) {
       alert("Lỗi khi lưu bảng giá sản phẩm: " + err.message);
     }
@@ -161,11 +179,18 @@ export function CngiaspModule() {
   const handleDeleteRow = async (row) => {
     const sheetRow = row._sheetRow;
     if (!sheetRow) return;
+    const targetMaSp = row[2];
     const desc = `${row[2]} - ${row[3]} (${row[1]})`;
     if (window.confirm(`Bạn có chắc chắn muốn xóa bản ghi giá: ${desc}?`)) {
       try {
         await deleteRow('cngiasp', sheetRow);
-        await fetchModule('cngiasp');
+        await fetchModule('cngiasp', true);
+
+        // Tự động cập nhật lại giá cho các đơn hàng trong module Lên đơn sau khi xóa
+        const syncRes = await syncProductPriceToLenDon(targetMaSp);
+        if (syncRes && syncRes.updatedCount > 0) {
+          alert(`Đã xóa bản ghi giá và tự động cập nhật lại đơn giá mới (${formatCurrency(syncRes.newPrice)}) cho ${syncRes.updatedCount} dòng đơn hàng trong module Lên đơn.`);
+        }
       } catch (err) {
         alert("Lỗi khi xóa bản ghi giá: " + err.message);
       }
@@ -183,7 +208,6 @@ export function CngiaspModule() {
 
       dataRows.forEach((r, idx) => {
         if (r.some(c => c !== '')) {
-          // If first col looks like ID or MaSP
           const maSp = (r[2] || r[1] || r[0] || '').toString().trim();
           if (!maSp) return;
 
@@ -220,10 +244,28 @@ export function CngiaspModule() {
       }
 
       await appendRows('cngiasp', validRows);
-      await fetchModule('cngiasp');
-      alert(`Đã nhập thành công ${validRows.length} dòng giá sản phẩm.`);
+      await fetchModule('cngiasp', true);
+
+      // Tự động đồng bộ các đơn hàng trong module Lên đơn
+      const syncCount = await syncAllPricesToLenDon();
+      let msg = `Đã nhập thành công ${validRows.length} dòng giá sản phẩm.`;
+      if (syncCount > 0) {
+        msg += ` Đồng thời cập nhật giá mới cho ${syncCount} dòng đơn hàng trong module Lên đơn.`;
+      }
+      alert(msg);
     } catch (err) {
       alert("Lỗi khi import Excel: " + err.message);
+    }
+  };
+
+  // Manual full sync to LenDon
+  const handleSyncToLenDon = async () => {
+    if (!window.confirm("Hệ thống sẽ rà soát tất cả đơn hàng trong module Lên đơn và cập nhật đơn giá theo giá mới nhất của bảng giá này. Tiếp tục?")) return;
+    try {
+      const syncCount = await syncAllPricesToLenDon();
+      alert(`Đã hoàn tất đồng bộ! Có ${syncCount} dòng đơn hàng trong Lên đơn được cập nhật giá mới nhất.`);
+    } catch (err) {
+      alert("Lỗi khi đồng bộ giá sang Lên đơn: " + err.message);
     }
   };
 
@@ -335,6 +377,15 @@ export function CngiaspModule() {
             >
               <Download className="w-3.5 h-3.5 text-emerald-600" />
               Xuất Excel
+            </button>
+
+            <button
+              onClick={handleSyncToLenDon}
+              className="px-2.5 py-1.5 bg-blue-50 text-blue-700 font-bold rounded-lg text-xs hover:bg-blue-100 transition flex items-center gap-1.5 border border-blue-200/60"
+              title="Đồng bộ giá mới nhất sang tất cả đơn hàng trong Lên đơn"
+            >
+              <ShoppingCart className="w-3.5 h-3.5 text-blue-600" />
+              Đồng bộ Lên đơn
             </button>
 
             <button

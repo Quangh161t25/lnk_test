@@ -76,7 +76,8 @@ export function LenDonModule() {
     deleteOrder, 
     fetchModule, 
     loadingModules,
-    getLatestPriceMap 
+    getLatestPriceMap,
+    syncAllPricesToLenDon
   } = useData();
 
   const { currentUser, hasActionPermission, canAccessWarehouse, resolveRoleKey } = useAuth();
@@ -466,6 +467,17 @@ export function LenDonModule() {
     }
   };
 
+  // Sync all prices from CN GIÁ SP
+  const handleSyncPrices = async () => {
+    if (!window.confirm("Hệ thống sẽ rà soát tất cả đơn hàng và áp dụng giá bán cập nhật gần nhất từ module CN GIÁ SP. Tiếp tục?")) return;
+    try {
+      const count = await syncAllPricesToLenDon();
+      alert(`Đã kiểm tra và cập nhật lại đơn giá mới nhất cho ${count} dòng đơn hàng.`);
+    } catch (err) {
+      alert("Lỗi khi cập nhật giá đơn hàng: " + err.message);
+    }
+  };
+
   return (
     <div className="space-y-2.5">
       {/* Top Banner / Stats Overview */}
@@ -555,6 +567,15 @@ export function LenDonModule() {
             >
               <FileSpreadsheet className="w-3.5 h-3.5 text-indigo-600" />
               File mẫu
+            </button>
+
+            <button
+              onClick={handleSyncPrices}
+              className="px-3 py-1.5 bg-amber-50 hover:bg-amber-100 border border-amber-200/80 rounded-lg font-bold text-amber-800 transition flex items-center gap-1.5 text-xs shadow-2xs"
+              title="Rà soát và cập nhật lại đơn giá các đơn hàng theo bảng giá mới nhất từ CN Giá SP"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+              Cập nhật giá theo CN Giá SP
             </button>
           </div>
 
